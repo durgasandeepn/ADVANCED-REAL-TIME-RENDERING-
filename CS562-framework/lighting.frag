@@ -1,10 +1,11 @@
+
 /////////////////////////////////////////////////////////////////////////
 // Pixel shader for lighting
 ////////////////////////////////////////////////////////////////////////
-#version 430
-
+#version 330
+//
 out vec4 FragColor;
-
+//
 // These definitions agree with the ObjectIds enum in scene.h
 const int     nullId	= 0;
 const int     skyId	= 1;
@@ -19,21 +20,26 @@ const int     teapotId	= 9;
 const int     spheresId	= 10;
 const int     floorId	= 11;
 
-//in vec3 normalVec, lightVec,eyeVec;
+in vec3 normalVec, lightVec,eyeVec;
 in vec2 texCoord;//
-//uniform sampler2D normalMap;
+uniform sampler2D tex;//
+uniform sampler2D normalMap;
 
 //Shadow
 //uniform sampler2DShadow shadowMap;
 uniform sampler2D shadowMap;
-vec4 ShadowCoord;
+in vec4 ShadowCoord;
 vec2 shadowIndex;
 float lightDepth;
 float pixelDepth;
 bool inShadow;
-
 //
-uniform sampler2D tex;//For wall tiles
+//Reflection
+uniform sampler2D UpMap,LowerMap;
+//
+//Irradiance
+uniform sampler2D IrradianceMap;
+uniform sampler2D SkyMapHDR;
 //
 uniform int objectId;
 uniform vec3 diffuse;
@@ -51,240 +57,52 @@ in vec3 tanVec;
 vec3 BRDF,F;
 float G,D;
 vec2 uv;//
-vec4 color = vec4(0.0, 0.0, 0.0, 1.0);//
+vec4 color;//
 
-bool TexturePresent = false;
-bool NormalMapPresent = false;
+bool TexturePresent;
+bool NormalMapPresent;
 
 float checker;
 uniform vec3 color1; // Color of the first checker
 uniform vec3 color2; // Color of the second checker
-uniform float scale; // Scale of the checkerboard
+uniform float scale;  // Scale of the checkerboard
 vec3 delta;
 
-vec2 PixelPos;
+//
+//Reflection
 
 //
-uniform sampler2D BlurredShadowMap;
-
-//	
-//uniform vec3 lightPos1;
-//	
-uniform sampler2D WorldPosMap;
-uniform sampler2D NMap;
-uniform sampler2D KdMap;
-uniform sampler2D KaMap;
-
-uniform mat4 WorldInverse,ShadowMatrix;//WorldView, WorldInverse, WorldProj, ModelTr, NormalTr, ShadowMatrix;
-
-uniform vec3 lightPos1;//LIGHT POSITION
-vec3 eyePos;
-vec3 normalVec, lightVec, eyeVec;
-//in vec2 texCoord;//06-04-2025 - needed
-
-vec3 uv3;
-vec3 WorldPos_Sha;//for shadow
-
-uniform float z0;//z_near
-uniform float z1;//z_far
-
-float S;
-
-vec3 CholeskyDecomposition(float m11, float m12, float m13, float m22, float m23, float m33, float z1, float z2, float z3)
-{
- float a = sqrt(m11);
- float b = m12 / a;
- float c = m13 / a;
-
- float d = sqrt(m22 - b * b);
- float e = (m23 - b * c) / d;
- float f = sqrt(m33 - c * c - e * e);
-
- // Capped value (a, d, f)
- a = max(a, 1e-4f);
- d = max(d, 1e-4f);
- f = max(f, 1e-4f);
-
- float _c1 = z1 / a;
- float _c2 = (z2 - b * _c1) / d;
- float _c3 = (z3 - c * _c1 - e * _c2) / f;
-
- float c3 = _c3 / f;
- float c2 = (_c2 - e * c3) / d;
- float c1 = (_c1 - b * c2 - c * c3) / a;
-
- return vec3(c1, c2, c3);
-}
-
-
-vec2 SolveQuadratic(float a, float b, float c)
-{
- const float epsilon = 1e-6f;
- float discriminant = b * b - 4 * a * c;
- 
- // 2 real roots
- if (discriminant > epsilon)
- {
-  float root1 = (-b + sqrt(discriminant)) / (2.0f * a);
-  float root2 = (-b - sqrt(discriminant)) / (2.0f * a);
-  return vec2(min(root1, root2), max(root1, root2));
- }
- // 1 real root
- else if (discriminant >= 0.0f && discriminant <= epsilon)
- {
-  float root = -b / (2.0f * a);
-  return vec2(root);
- }
- // 2 complex roots
- else
- {
-  float real = -b / (2.0f * a);
-  float imag = sqrt(-discriminant) / (2.0f * a);
-  return vec2(real, imag);
- }
-}
-
-//MSM
- float MomentShadowMap(sampler2D shadowMap, vec4 shadowCoord){
-			
-			float zF = pixelDepth;
-
-			const float epsilon = 1e-3f;
-			float zF_2 = pixelDepth * pixelDepth;
-			normalVec = texture(NMap, uv).xyz;
-
-
-			float Shadowbias =  max(0.05 * (1.0 - dot(normalVec, lightVec)), 0.001f);
-			vec4 b = texture2D(BlurredShadowMap, shadowIndex.xy);
-		
-			 //float shadowBias = 1e-3f;
-			if (abs(b.x - Shadowbias) < epsilon){
-				return 0.0f;
-			}
-
-			float alpha = 1e-3f;
-			vec4 bPrime = (1.0f - alpha) * b + (alpha * vec4(0.5f));
-
-
-			vec3 c = CholeskyDecomposition(1.0f, bPrime.x, bPrime.y, bPrime.y, bPrime.z, bPrime.w, 1.0f, zF, zF_2);
-
-		 
-			 vec2 solutions = SolveQuadratic(c.z, c.y, c.x);
-			 float z2 = solutions.x;
-			 float z3 = solutions.y;
-
-			  if (zF <= z2 || abs(zF - z2) <= epsilon)
-			 {
-			  return 0.0;
-			 }
-
-			 if (zF <= z3 || abs(zF - z3) <= epsilon)
-			 {
-			  float numerator = zF * z3 - bPrime.x * (zF + z3) + bPrime.y;
-			  float denominator = (z3 - z2) * (zF - z2);
-			  return numerator / denominator;
-			 }
-
-			 float numerator = z2 * z3 - bPrime.x * (z2 + z3) + bPrime.y;
-			 float denominator = (zF - z2) * (zF - z3);
-			 return 1.0 - numerator / denominator;
-		}
-
-
-//Variance Map
-float VarianceMap(sampler2D BlurShadowMap, float t){
-	float S, M1, M2, Sigma_Sqr, Mu;
-	vec2 uv = gl_FragCoord.xy/vec2(750,750); // Or use textureSize
-    
-	vec4 BlurValues = texture2D(BlurredShadowMap, uv);
-	M1 = BlurValues.r;
-	M2 = BlurValues.g;
-
-	Mu = M1;
-
-	Sigma_Sqr = M2 - ( M1 * M1 );
-	
-	S = Sigma_Sqr/Sigma_Sqr + pow((t - Mu), 2);
-
-	return S;
-}
-
+//IBL
+vec3 irradianceBRDF;
+vec3 r;
+vec3 R;
+float e = 2.5;
+//uniform float e;
+vec3 C;
 
 void main()
-{	
-	//
-	//DEBUGGING 
-
-	
-	//ShadowMap Reading Correctly ... working
-	vec2 uv = gl_FragCoord.xy/vec2(750,750); // Or use textureSize
-    FragColor = texture(BlurredShadowMap, uv);
-	return;
-	
-	
-	/*
-	//CHECKED BLUR IS WORKING ... wokring
-	vec2 uv = gl_FragCoord.xy/vec2(750,750); // Or use textureSize
-    FragColor = texture(BlurredShadowMap, uv);
-	return;
-	*/
-	//
-
-	//
-	//TESTING--->TESTED WORKING
-	//uv = gl_FragCoord.xy/vec2(750,750); // (or whatever screen size)//750,750 given in test pdf
-	//FragColor.xyz = abs(texture(NMap, uv).xyz);//working
-	//FragColor.xyz = (texture(WorldPosMap, uv).xyz)/2;//working
-	//FragColor.xyz = (texture(KdMap, uv).xyz);//working
-	//FragColor.xyz = (texture(KaMap, uv).xyz) * 50;//working
-	//return;
-
-
-
-	/*
-    // Visualize the position (scale/bias might be needed to see colors)
-    FragColor = vec4(abs(pos) * 0.1, 1.0); // Example visualization
-	return;
+{
+	 
+	/*	vec2 uv = gl_FragCoord.xy/vec2(1024,1024); // (or whatever screen size)
+	FragColor.xyz = vec3(texture(LowerMap, uv)); // or similar
+	//FragColor.xyz = vec3(texture(UpMap, uv)); // or similar
+	return; // which disables all further code in the shader.
 	*/
 
-	//
-	//texCoord
-	uv = gl_FragCoord.xy/vec2(750,750);
-	//
-	WorldPos_Sha = texture(WorldPosMap, uv).xyz;
-	ShadowCoord = ShadowMatrix * vec4(WorldPos_Sha, 1.0);
-
-	//PixelPos = gl_FragColor.xy/vec2(750,750);
-	//EYE POSITION
-	eyePos = (WorldInverse*vec4(0,0,0,1)).xyz;
-	uv3 = vec3(uv, 0.0);
-	eyeVec = eyePos - uv3;// texture(WorldPosMap, uv).xyz;
-	//
-	lightVec = lightPos1 - texture(WorldPosMap, uv).rgb;//light
-	//
-
-
-	vec3 N = texture(NMap, uv).rgb;//changed
+	vec3 N = normalize(normalVec);
     vec3 L = normalize(lightVec);
-	vec3 V = normalize(eyeVec);//done
+	vec3 V = normalize(eyeVec);
 	
 	vec3 H = normalize(L+V);
 	float LN = max(dot(L,N),0.0);
 	float HN = max(dot(H,N),0.0);
 
-    //vec3 Kd = diffuse;//color texture(WorldPosMap, uv).xyz;
-    vec3 Kd = texture(KdMap, uv).xyz;
-	vec3 Ks = texture(KaMap, uv).xyz;
-	
-	/*
-	vec2 uv = gl_FragCoord.xy/vec2(750,750); // Or use textureSize
-    FragColor = vec4(Kd,1.0);
-	return;
-	*/
-	
+    vec3 Kd = diffuse;//color
+	vec3 Ks = specular;
+
 	vec3 Ii = Light;
 	vec3 Ia = Ambient;
-	float Alpha = texture(KaMap, uv).a;
+	float Alpha = shininess;
 	
 	vec3 T = normalize(tanVec);
     vec3 B = normalize(cross(T,N));
@@ -296,26 +114,13 @@ void main()
         ShadowCoord.w > 0.0)
     {
         // Sample the shadow map (depth value from light's perspective)
-
-		//BlurredShadowMap
         lightDepth = texture2D(shadowMap, shadowIndex).w;
-        pixelDepth = (ShadowCoord.w - z0)/(z1 - z0);//zf in the document
-
-
-		S =  VarianceMap(BlurredShadowMap, lightDepth);
-
-
-		//S = MomentShadowMap(shadowMap, ShadowCoord);
-			
-		/*
-		FragColor = vec4(1.0,0.0,1.0,1.0);
-		return;
-		*/
-
-
+        pixelDepth = ShadowCoord.w - 0.05;
+		
+		//
         // Determine if the fragment is in shadow (if pixelDepth > lightDepth)
 		inShadow =  (pixelDepth > lightDepth);
-	
+		//
     }
     else
     {
@@ -323,21 +128,7 @@ void main()
     }
 
 
-	//inShadow = false;
 	
-	//
-	//
-    // A checkerboard pattern to break up large flat expanses.  Remove when using textures.
-	/*
-    if (objectId==groundId || objectId==floorId || objectId==seaId) {
-        ivec2 uv = ivec2(floor(100.0*texCoord));
-        if ((uv[0]+uv[1])%2==0)
-            Kd *= 0.9; }
-	*/
-	//
-	//
-	
-
 	if(objectId == teapotId){//ok
 		//texture
 		uv = fract(texCoord * 4);
@@ -373,6 +164,9 @@ void main()
 		
 		uv[0] = -atan(V.y, V.x) / (2 * Pi);
 		uv[1] = acos(V.z) / Pi;
+		
+
+
 		// Wrap around the skyUV.x coordinate to ensure it stays in [0, 1] range
 		//uv[0] = fract(uv[0]);
 		//uv = fract(uv);
@@ -425,7 +219,7 @@ void main()
 		TexturePresent = false;
 		NormalMapPresent = false;
 	}
-	
+
 
 	if(TexturePresent == true && objectId != rPicId){
 
@@ -433,13 +227,11 @@ void main()
 		Kd = color.xyz;
 	}
 
-
 	if(NormalMapPresent == true){
 		//NormalMap
-		//delta = texture(normalMap, uv).xyz;
-		//delta = (delta * 2.0) - vec3(1,1,1);
-		//N = (delta.x * T) + (delta.y * B) + (delta.z * N);
-
+		delta = texture(normalMap, uv).xyz;
+		delta = (delta * 2.0) - vec3(1,1,1);
+		N = (delta.x * T) + (delta.y * B) + (delta.z * N);
 	}
 
 	H = normalize(L+V);
@@ -447,15 +239,51 @@ void main()
 	HN = max(dot(H,N),0.0);
 
 	//
-	//Normal Calculations are done above 
-	//reflections are to be done here 
+	//Normal Calculations are to be  done above
+	//
+	//Reflections are to be done here 
+	//Reflection
+	if(objectId == teapotId)
+	{
+		
+		float c;
+		
+		//Reflection
+		r = 2 * (dot(V,N)) * N - V;
+		r = normalize(r);
+		c = r.z;
+
+		if(c > 0){
+			
+			uv = vec2( r.x/( 1 + c), r.y/( 1 + c) ) * 0.5 + vec2(0.5,0.5);
+			color =  texture(UpMap, uv);
+			//FragColor.xyz = Kd;
+			//FragColor.w = 1.0;
+			//return;
+
+		}else {
+			
+			uv = vec2( r.x/( 1 - c), r.y/( 1 - c) ) * 0.5 + vec2(0.5,0.5);
+			color =  texture(LowerMap, uv);
+			//FragColor.xyz = Kd;
+			//FragColor.w = 1.0;
+			//return;
+
+		}
+
+		Kd = color.xyz;
+		
+	}
+
+
 	if(objectId == seaId){
-		/*
-	 	vec3 R = -1.0 * (2.0 * dot(N , V) * (N - V));
+
+	 	R = -1.0 * (2.0 * dot(N , V) * (N - V));
+		R  = normalize(R);
 		uv[0] = -atan(R.y, R.x) / (2.0 * Pi);
 		uv[1] = acos(R.z) / Pi;
 		color = texture(tex,uv);
-		*/
+
 	}
 
 	//
@@ -463,42 +291,100 @@ void main()
 	//
 	//Phong Lighting Calculations
 	//FragColor.xyz = vec3(0.5,0.5,0.5)*Kd + Kd*max(dot(L,N),0.0);
-	//
 	if(objectId != skyId && objectId != seaId){
-	
-		D =	((Alpha + 2.0)/(2.0*Pi)) * pow((HN),Alpha);
-		F = Ks + ((1,1,1) - Ks) * pow((1 - max(dot(H,L),0.0)),5);
-		G = (1.0/(pow(max(dot(H,L),0.00001),2)));
-	
-		BRDF = (Kd/Pi) + (F * G * D) / 4.0;
 
-		//FragColor.xyz = (Ia * Kd) + Ii*(LN)	*(BRDF * color.xyz);
-		
-		//
-		// If in shadow, only apply ambient lighting
-        if (inShadow == true) 
-		{
-			//In Shadow
-			FragColor.xyz = (Ia * Kd);  // Ambient lighting only
+			uv[0] = -atan(-N.y, -N.x) / (2 * Pi);
+			uv[1] = acos(N.z) / Pi;
 
-		} else if (inShadow == false) 
-		{
-			//In lighting
-			FragColor.xyz = (Ia * Kd) + S *(Ii*(LN)	* (BRDF));
-			//FragColor.xyz = (Ia * Kd) + Ii * (LN) * (BRDF);
-		}
+			R = -1.0 * (2.0 * dot(N , V) * N - V);
+			
+			if(objectId != teapotId){
+				e = 2.5;
+				//Kd = pow(Kd , vec3(2.2)); 
+				Kd = pow((e*Kd) / (e * Kd + vec3(1,1,1)), vec3(2.2));
+			}
+			
+			irradianceBRDF = texture(IrradianceMap, uv).xyz * Kd/Pi * 10;
 
-		FragColor.xyz = (Ia * Kd) + S *(Ii*(LN)	* (BRDF));
-		FragColor.w = 1.0;
-		
+			//teapot
+			//gorund
+			//box
+
+			/*
+			D =	((Alpha + 2.0)/(2.0*Pi)) * pow((HN),Alpha);
+			F = Ks + ((1,1,1) - Ks) * pow((1 - max(dot(H,L),0.0)),5);
+			G = (1.0/(pow(max(dot(H,L),0.00001),2)));
+			*/
+
+			D =	((Alpha + 2.0)/(2.0*Pi)) * pow((HN),Alpha);
+			F = Ks + ((1,1,1) - Ks) * pow((1 - max(dot(H,R),0.0)),5);
+			G = (1.0/(pow(max(dot(H,R),0.00001),2)));
+
+
+			//
+			//The BRDF Equation
+			//BRDF = (Kd/Pi) + (F * G * D) / 4.0;
+			//BRDF = (F * G * D) / 4.0;
+
+			//
+			//FragColor.xyz = (Ia * Kd) + Ii * (LN)	*(BRDF * color.xyz);
+			
+			//
+			// If in shadow, only apply ambient lighting
+			inShadow = false;
+			if (inShadow == true) 
+			{
+				//In Shadow
+				//Ia is ambient Light
+				FragColor.xyz = (Ia * Kd) + irradianceBRDF;  // Ambient lighting only + Irradiance
+				
+
+			} else
+			{
+				
+				uv[0] = -atan(R.y, R.x) / (2.0 * Pi);
+				uv[1] = acos(R.z) / Pi;
+				Ii = texture(SkyMapHDR, uv).xyz;
+				//In lighting
+
+				//Ii * (dot(R,N)) * (BRDF) +
+				//FragColor.xyz = (Ia * Kd)  +  irradianceBRDF;
+				//FragColor.xyz = Ii * (dot(R,N)) * (BRDF) + irradianceBRDF;
+				//FragColor.xyz = Ii * (max(dot(R,N),0.00001)) * (BRDF) + irradianceBRDF;
+				//FragColor.xyz = Ii * 0.03 + irradianceBRDF;
+				FragColor.xyz = ((Ia * 0.5) * Kd) + Ii * 0.03 + irradianceBRDF;
+				//Tone Mapping
+				//FragColor.xyz = Kd;
+
+				C = FragColor.xyz;
+				C = pow((e*C) / (e * C + vec3(1,1,1)), vec3(1/2.2));
+				FragColor.xyz = C;
+			}
+
+
+			FragColor.w = 1.0;
+			
 	}else if(objectId == skyId || objectId == seaId) {
 		//
 		//Only For Sky and sea Texture
-		FragColor = color;
+		C = color.xyz;
+		C = pow((e*C) / (e * C + vec3(1,1,1)), vec3(1/2.2));
+		FragColor.xyz = C;
+		FragColor.w = 1.0;
+		
+		//FragColor = color;
 	}
-
+	
 
 }
+
+
+
+
+
+
+
+
 
 
 

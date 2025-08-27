@@ -1,0 +1,110 @@
+﻿cl : command line  warning D9035: option 'Gm' has been deprecated and will be removed in a future release
+  transform.cpp
+  texture.cpp
+  shapes.cpp
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\shapes.cpp(307,26): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\shapes.cpp(308,26): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\shapes.cpp(309,26): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\shapes.cpp(313,27): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\shapes.cpp(314,27): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\shapes.cpp(318,26): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\shapes.cpp(319,26): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\shapes.cpp(320,26): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\shapes.cpp(324,27): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\shapes.cpp(325,27): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\shapes.cpp(500,21): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\shapes.cpp(564,24): warning C4244: '=': conversion from 'double' to 'T', possible loss of data
+          with
+          [
+              T=float
+          ]
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\shapes.cpp(577,24): warning C4244: '=': conversion from 'double' to 'T', possible loss of data
+          with
+          [
+              T=float
+          ]
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\shapes.cpp(588,24): warning C4244: '=': conversion from 'double' to 'T', possible loss of data
+          with
+          [
+              T=float
+          ]
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\shapes.cpp(679,13): warning C4305: 'initializing': truncation from 'double' to 'float'
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\shapes.cpp(684,21): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\shapes.cpp(685,21): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+  shader.cpp
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\shader.cpp(26,16): warning C4244: 'initializing': conversion from 'std::streamoff' to 'int', possible loss of data
+  scene.cpp
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\scene.cpp(49,24): warning C4305: 'initializing': truncation from 'double' to 'float'
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\scene.cpp(50,31): warning C4305: 'initializing': truncation from 'double' to 'float'
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\scene.cpp(88,23): warning C4305: 'initializing': truncation from 'double' to 'float'
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\scene.cpp(88,62): warning C4305: '+=': truncation from 'double' to 'float'
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\scene.cpp(89,42): warning C4244: 'argument': conversion from 'double' to 'const float', possible loss of data
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\scene.cpp(95,85): warning C4244: 'argument': conversion from 'double' to 'const float', possible loss of data
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\scene.cpp(95,77): warning C4244: 'argument': conversion from 'double' to 'const float', possible loss of data
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\scene.cpp(95,69): warning C4244: 'argument': conversion from 'double' to 'const float', possible loss of data
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\scene.cpp(106,13): warning C4305: 'initializing': truncation from 'double' to 'float'
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\scene.cpp(114,43): warning C4244: 'argument': conversion from 'double' to 'const float', possible loss of data
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\scene.cpp(115,44): warning C4244: 'argument': conversion from 'double' to 'const float', possible loss of data
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\scene.cpp(116,33): warning C4244: 'argument': conversion from 'double' to 'const float', possible loss of data
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\scene.cpp(116,62): warning C4244: 'argument': conversion from 'double' to 'const float', possible loss of data
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\scene.cpp(117,34): warning C4244: 'argument': conversion from 'double' to 'const float', possible loss of data
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\scene.cpp(117,63): warning C4244: 'argument': conversion from 'double' to 'const float', possible loss of data
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\scene.cpp(178,27): warning C4305: 'argument': truncation from 'double' to 'const T'
+          with
+          [
+              T=float
+          ]
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\scene.cpp(326,48): warning C4305: 'argument': truncation from 'double' to 'const float'
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\scene.cpp(328,48): warning C4305: 'argument': truncation from 'double' to 'const float'
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\scene.cpp(336,56): warning C4305: 'argument': truncation from 'double' to 'const float'
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\scene.cpp(336,51): warning C4305: 'argument': truncation from 'double' to 'const float'
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\scene.cpp(336,46): warning C4305: 'argument': truncation from 'double' to 'const float'
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\scene.cpp(343,46): warning C4305: 'argument': truncation from 'double' to 'const float'
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\scene.cpp(343,72): warning C4305: 'argument': truncation from 'double' to 'const float'
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\scene.cpp(343,67): warning C4305: 'argument': truncation from 'double' to 'const float'
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\scene.cpp(343,62): warning C4305: 'argument': truncation from 'double' to 'const float'
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\scene.cpp(344,47): warning C4305: 'argument': truncation from 'double' to 'const float'
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\scene.cpp(344,73): warning C4305: 'argument': truncation from 'double' to 'const float'
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\scene.cpp(344,68): warning C4305: 'argument': truncation from 'double' to 'const float'
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\scene.cpp(344,63): warning C4305: 'argument': truncation from 'double' to 'const float'
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\scene.cpp(486,18): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\scene.cpp(515,34): warning C4244: 'argument': conversion from 'double' to 'const float', possible loss of data
+  object.cpp
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\object.cpp(123,27): warning C4018: '<': signed/unsigned mismatch
+  imgui_widgets.cpp
+  imgui_draw.cpp
+  imgui_demo.cpp
+  imgui.cpp
+  imgui_impl_opengl3.cpp
+  imgui_impl_glfw.cpp
+  interact.cpp
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\interact.cpp(150,12): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\interact.cpp(151,12): warning C4244: 'initializing': conversion from 'double' to 'int', possible loss of data
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\interact.cpp(155,30): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\interact.cpp(156,30): warning C4244: '-=': conversion from 'double' to 'float', possible loss of data
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\interact.cpp(161,30): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\interact.cpp(162,30): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
+  framework.cpp
+  fbo.cpp
+  HDRTexture.cpp
+  Generating Code...
+cl : command line  warning D9035: option 'Gm' has been deprecated and will be removed in a future release
+  rply.c
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\rply.c(374,10): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\rply.c(462,10): warning C4996: 'fopen': This function or variable may be unsafe. Consider using fopen_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\rply.c(492,5): warning C4996: 'strcpy': This function or variable may be unsafe. Consider using strcpy_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\rply.c(510,5): warning C4996: 'strcpy': This function or variable may be unsafe. Consider using strcpy_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\rply.c(534,5): warning C4996: 'strcpy': This function or variable may be unsafe. Consider using strcpy_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\rply.c(559,5): warning C4996: 'strcpy': This function or variable may be unsafe. Consider using strcpy_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\rply.c(573,5): warning C4996: 'strcpy': This function or variable may be unsafe. Consider using strcpy_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\rply.c(1228,5): warning C4996: 'strcpy': This function or variable may be unsafe. Consider using strcpy_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\rply.c(1243,5): warning C4996: 'strcpy': This function or variable may be unsafe. Consider using strcpy_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\rply.c(1246,9): warning C4996: 'sscanf': This function or variable may be unsafe. Consider using sscanf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\rply.c(1268,5): warning C4996: 'vsprintf': This function or variable may be unsafe. Consider using vsprintf_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+fbo.obj : warning LNK4075: ignoring '/EDITANDCONTINUE' due to '/SAFESEH' specification
+LINK : warning LNK4098: defaultlib 'MSVCRT' conflicts with use of other libs; use /NODEFAULTLIB:library
+  framework.vcxproj -> C:\Users\dasas\Downloads\SUBMISSION\CS562-Prj3_IBL_d.Namballa\Prj3-IBL_d.Namballa\Debug\framework.exe
+  'pwsh.exe' is not recognized as an internal or external command,
+  operable program or batch file.
+  .\libs\glbinding.dll
+  1 File(s) copied

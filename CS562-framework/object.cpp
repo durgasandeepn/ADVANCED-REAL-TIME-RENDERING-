@@ -43,7 +43,7 @@ Object::Object(Shape* _shape, const int _objectId,
 
 void Object::Draw(ShaderProgram* program, glm::mat4& objectTr)
 {
-    //    CHECKERROR;
+    CHECKERROR;
     // @@ The object specific parameters (uniform variables) used by
     // the shader are set here.  Scene specific parameters are set in
     // the DrawScene procedure in scene.cpp
@@ -109,26 +109,26 @@ void Object::Draw(ShaderProgram* program, glm::mat4& objectTr)
 
 
     // Draw this object
-   // CHECKERROR;
+    CHECKERROR;
     if (shape)
         if (drawMe) 
             shape->DrawVAO();
-    //CHECKERROR;
+    CHECKERROR;
 
         //glBindTexture(GL_TEXTURE_2D, 0);
 
-    //CHECKERROR;
+    CHECKERROR;
     // Recursively draw each sub-objects, each with its own transformation.
     if (drawMe) {
         for (int i = 0; i < instances.size(); i++) {
-           // CHECKERROR;
+            CHECKERROR;
             glm::mat4 itr = objectTr * instances[i].second * animTr;
-           // CHECKERROR;
+            CHECKERROR;
             instances[i].first->Draw(program, itr);
-           // CHECKERROR;
+            CHECKERROR;
         }
     }
-   // CHECKERROR;
+    CHECKERROR;
 
     if (texture != NULL) {
         texture->UnbindTexture(0);
@@ -141,107 +141,5 @@ void Object::Draw(ShaderProgram* program, glm::mat4& objectTr)
 }
 
 
-
-
-void Object::Draw(ShaderProgram* program, glm::mat4& objectTr, int Index)
-{
-    //    CHECKERROR;
-    // @@ The object specific parameters (uniform variables) used by
-    // the shader are set here.  Scene specific parameters are set in
-    // the DrawScene procedure in scene.cpp
-
-    // @@ Textures, being uniform sampler2d variables in the shader,
-    // are also set here.  Call texture->Bind in texture.cpp to do so.
-
-    // Inform the shader of the surface values Kd, Ks, and alpha.
-    int loc = glGetUniformLocation(program->programId, "diffuse");
-    glUniform3fv(loc, 1, &diffuseColor[0]);
-
-    loc = glGetUniformLocation(program->programId, "specular");
-    glUniform3fv(loc, 1, &specularColor[0]);
-
-    loc = glGetUniformLocation(program->programId, "shininess");
-    glUniform1f(loc, shininess);
-
-    // Inform the shader of which object is being drawn so it can make
-    // object specific decisions.
-    loc = glGetUniformLocation(program->programId, "objectId");
-    glUniform1i(loc, objectId);
-
-    // Inform the shader of this object's model transformation.  The
-    // inverse of the model transformation, needed for transforming
-    // normals, is calculated and passed to the shader here.
-    loc = glGetUniformLocation(program->programId, "ModelTr");
-    glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(objectTr));
-
-    glm::mat4 inv = glm::inverse(objectTr);
-    loc = glGetUniformLocation(program->programId, "NormalTr");
-    glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(inv));
-
-    // If this object has an associated texture, this is the place to
-    // load the texture into a texture-unit of your choice and inform
-    // the shader program of the texture-unit number.  See
-    // Texture::Bind for the 4 lines of code to do exactly that.
-    if (texture != NULL) {
-
-        int unit = 0; // Can be 0 through (at least) 15
-        glActiveTexture(GL_TEXTURE0 + unit);
-        glBindTexture(GL_TEXTURE_2D, texture->textureId);//
-        loc = glGetUniformLocation(program->programId, "tex");
-        glUniform1i(loc, unit);
-
-    }
-
-    if (normalTexture != NULL) {
-        int normalUnit = 1; // for normal map it is  1
-        glActiveTexture(GL_TEXTURE0 + normalUnit);
-        glBindTexture(GL_TEXTURE_2D, normalTexture->textureId);
-
-        // Set the sampler in the shader to use this texture unit
-        int normalLoc = glGetUniformLocation(program->programId, "normalMap");
-        glUniform1i(normalLoc, normalUnit);
-    }
-    //
-
-    //
-    //
-    glUniform3f(glGetUniformLocation(program->programId, "color1"), 1.0f, 1.0f, 1.0f);  // White
-    glUniform3f(glGetUniformLocation(program->programId, "color2"), 0.0f, 0.0f, 0.0f);  // Black
-    glUniform1f(glGetUniformLocation(program->programId, "scale"), 10.0f);
-
-
-    // Draw this object
-   // CHECKERROR;
-    if (shape)
-        if (drawMe)
-            shape->DrawVAO();
-    //CHECKERROR;
-
-        //glBindTexture(GL_TEXTURE_2D, 0);
-
-    //CHECKERROR;
-    // Recursively draw each sub-objects, each with its own transformation.
-    if (drawMe) {
-        //for (int i = 0; i < instances.size(); i++) {
-            // CHECKERROR;
-        if (Index >= 0 && Index < instances.size()) {
-            glm::mat4 itr = objectTr * instances[Index].second * animTr;
-            // CHECKERROR;
-            instances[Index].first->Draw(program, itr, Index);
-            // CHECKERROR;
-        }
-        //}
-    }
-    // CHECKERROR;
-
-    if (texture != NULL) {
-        texture->UnbindTexture(0);
-    }
-
-    if (normalTexture != NULL) {
-        normalTexture->UnbindTexture(1);
-    }
-
-}
 
 

@@ -4,7 +4,6 @@
 ////////////////////////////////////////////////////////////////////////
 
 #include "framework.h"
-#include <iostream>
 
 Scene scene;
 
@@ -17,24 +16,16 @@ static void error_callback(int error, const char* msg)
 // Do the OpenGL/GLFW setup and then enter the interactive loop.
 int main(int argc, char** argv)
 {
-
     glfwSetErrorCallback(error_callback);
 
     // Initialize the OpenGL bindings
     glbinding::Binding::initialize(false);
 
     // Initialize glfw open a window
-    if (!glfwInit()) {
-
-        exit(EXIT_FAILURE);
-    }
-
-    int major, minor, rev;
-    glfwGetVersion(&major, &minor, &rev);
-
+    if (!glfwInit())  exit(EXIT_FAILURE);
 
     glfwWindowHint(GLFW_RESIZABLE, 1);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, 0);
@@ -65,7 +56,6 @@ int main(int argc, char** argv)
 
         scene.DrawScene();
         scene.DrawMenu();
-        //scene.PrjWid2025();
         glfwSwapBuffers(scene.window); }
 
     ImGui_ImplOpenGL3_Shutdown();
@@ -73,5 +63,4 @@ int main(int argc, char** argv)
     ImGui::DestroyContext();
 
     glfwTerminate();
-
 }

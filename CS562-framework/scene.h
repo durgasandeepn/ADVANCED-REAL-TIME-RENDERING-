@@ -15,9 +15,8 @@
 #include "shapes.h"
 #include "object.h"
 #include "texture.h"
-#include "CreateTextue.h"
+#include"HDRTexture.h"
 #include "fbo.h"
-#include "Project2.h"
 
 enum ObjectIds {
     nullId	= 0,
@@ -31,9 +30,7 @@ enum ObjectIds {
     rPicId	= 8,
     teapotId	= 9,
     spheresId	= 10,
-    floorId     = 11,
-    ScreenQuadId = 12,
-    LightSph = 13
+    floorId     = 11
 };
 
 class Shader;
@@ -43,8 +40,6 @@ class Scene
 {
 public:
     GLFWwindow* window;
-
-    bool CHECKing;
 
     // @@ Declare interactive viewing variables here. (spin, tilt, ry, front back, ...)
     float spin;
@@ -71,17 +66,9 @@ public:
     double PreviousTime;
 
     int ShadowMap_Width, ShadowMap_Height;
-    int GBufferMap_Width, GBufferMap_Height;
-
-    //SPRING PROJECTS 2025
-    //PROJECT 01
-    float Value;
-
-
-    //SSBO variables
-    unsigned int ssboID;
-    std::vector<GLuint> textureIDs;
-
+    int ReflectionMap_Width, ReflectionMap_Height;
+    //
+    float e;
     //
     bool DepthFlag = false;
     /*
@@ -114,7 +101,7 @@ public:
     float PolishedSurface;//teapot
     float ModerateSmoothSurface;//podium
 //   glm::vec3 Light, Ambient;
-    glm::vec3 Light = glm::vec3(3.0, 3.0, 3.0);//vec3(0.1, 0.1, 0.1);//
+    glm::vec3 Light = glm::vec3(3.0, 3.0, 3.0);
     glm::vec3 Ambient = glm::vec3(0.2, 0.2, 0.2);//vec3(0.1, 0.1, 0.1);//vec3(0.2, 0.2, 0.2);
 
 
@@ -133,7 +120,9 @@ public:
     Texture* RipplesNormalT;
     Texture* BricksNormalT;
 
-
+    HDRTexture* HDRP_SKYTexture;
+    HDRTexture* HDRP_IrradianceTxt;
+    
     int mode; // Extra mode indicator hooked up to number keys and sent to shader
     
     // Viewport
@@ -148,82 +137,32 @@ public:
     Object *central, *anim, *room, *floor, *teapot, *podium, *sky,
             *ground, *sea, *spheres, *leftFrame, *rightFrame;
 
-    //For the Deferred Shading [PROJECT - 01]
-    Object* DS_Root;//For Deferred Shading using this to render the ScreenQuad
-    Object* ScreenQuad;
-    std::vector<Object*> LightSphObjs;
-    Object* LightSphs_Root;//spheres around the point lights.
-
-    //
-    //Point lights for deferred shading
-    struct PointLightData
-    {
-        glm::vec3 position;
-        glm::vec3 color;
-        glm::vec3 intensity;
-        float radius;
-    };
-
-    std::vector<PointLightData> pointLights;
-    std::vector<Shape*> LightSpheres;
-    size_t LightsSize;
-
     std::vector<Object*> animated;
     ProceduralGround* proceduralground;
-
-    CreateTexture* CreateTextureObj;
-    Project2* Project2Methods;
 
     // Shader programs
     ShaderProgram* lightingProgram;
     // @@ Declare additional shaders if necessary
     ShaderProgram* ShadowProgram;
-    FBO* Fbo;
-    
+    FBO* Shadow_Fbo;
     //
-    //Compute Shaders
-    ShaderProgram* HorizCS;
-    ShaderProgram* VerticalCS;
-    float z_near;
-    float z_far;
-    int AlgoNum;
-    std::vector<string> AlgoNames;
+    //Reflection Fbos and Prg;
+    ShaderProgram* ReflectionProgram;
+    FBO* Up_Fbo;
+    FBO* Lower_Fbo;
+    //
+    //
+    //Upper reflection map
+    //Lower reflection map
+    glm::vec3 EYE = glm::vec3(0.0, 0.0, 1.5);
 
-    //
-    //18-03-2025 --> 25-03-2025
-    ShaderProgram* GBufferProgram;
-    FBO* GB_Fbos;
-    ShaderProgram* LocalLightsProgram;
 
     // Options menu stuff
     bool show_demo_window;
-
 
     void InitializeScene();
     void BuildTransforms();
     void DrawMenu();
     void DrawScene();
 
-    void CreatePointLights();
-    glm::vec3 RandomColor();
-    glm::vec3 RandomIntensity();
-    int RandomRadius();
-    
-    //For Time being I am adding SSBO related functions here
-
-    void CreateSSBO( );
-    void LoadTextureIDs( );
-    void PopulateSSBOFromTextures();
-
-    void PrjWid2025();
 };
-
-
-
-
-
-
-
-
-
-

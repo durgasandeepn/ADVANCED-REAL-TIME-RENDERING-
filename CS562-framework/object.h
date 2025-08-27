@@ -47,7 +47,6 @@ class Object
     // Object::Draw.
     
     void Draw(ShaderProgram* program, glm::mat4& objectTr);
-    void Draw(ShaderProgram* program, glm::mat4& objectTr, int Index);
 
     void add(Object* m, glm::mat4 tr=glm::mat4(1.0)) { instances.push_back(std::make_pair(m,tr)); }
 };

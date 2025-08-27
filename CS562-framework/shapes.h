@@ -74,7 +74,6 @@ class Sphere: public Shape
 {
 public:
     Sphere(const int n);
-    Sphere(const int n, const float radius);
 };
 
 class Disk: public Shape

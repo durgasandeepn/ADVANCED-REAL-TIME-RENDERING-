@@ -154,7 +154,7 @@ bool    ImGui_ImplOpenGL3_Init(const char* glsl_version)
 {
     // Query for GL version (e.g. 320 for GL 3.2)
 #if !defined(IMGUI_IMPL_OPENGL_ES2)
-    GLint major = 0;
+    GLint major = 4;
     GLint minor = 0;
     glGetIntegerv(GL_MAJOR_VERSION, &major);
     glGetIntegerv(GL_MINOR_VERSION, &minor);
@@ -644,6 +644,7 @@ bool    ImGui_ImplOpenGL3_CreateDeviceObjects()
     }
     else if (glsl_version >= 410)
     {
+        
         vertex_shader = vertex_shader_glsl_410_core;
         fragment_shader = fragment_shader_glsl_410_core;
     }

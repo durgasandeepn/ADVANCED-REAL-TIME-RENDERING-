@@ -18,9 +18,6 @@
 #include <iostream>
 #include <stdlib.h>
 
-#include <cmath>
-#include <random>
-
 #include <glbinding/gl/gl.h>
 #include <glbinding/Binding.h>
 using namespace gl;
@@ -37,11 +34,11 @@ using namespace gl;
 #include "shapes.h"
 #include "object.h"
 #include "texture.h"
+#include "HDRTexture.h"
 #include "transform.h"
-#include "CreateTextue.h"
 const bool fullPolyCount = true; // Use false when emulating the graphics pipeline in software
 
-
+float e = 0;
 const float PI = 3.14159f;
 const float rad = PI/180.0f;    // Convert degrees to radians
 
@@ -132,12 +129,10 @@ Object* FramedPicture(const glm::mat4& modelTr, const int objectId,
 // number of other parameters.
 void Scene::InitializeScene()
 {
-    CHECKing = true;
     //
-    //glEnable(GL_DEPTH_TEST);
+    glEnable(GL_DEPTH_TEST);
     CHECKERROR;
-    AlgoNum = 0;
-    AlgoNames = { "Initial Shadow Algo","Variance", "MSM" };
+
     //ShadowTesting = DepthTestTest;
     DepthFlag = true;
 
@@ -158,20 +153,19 @@ void Scene::InitializeScene()
     a_down = false;
     s_down = false;
     d_down = false;
-    transformation_mode = false;//Tab key Task2 and Task3
+    transformation_mode = false;//Tab key Tassk2 and Task3
     time_since_last_refresh = 0;
     step = 0;
     CurrentTime = 0;
     PreviousTime = 0;
 
- 
-    //AlgoNum = 1;
-
     //Shadow Map Parameters
     ShadowMap_Width = 1024;
     ShadowMap_Height = 1024;
-    GBufferMap_Width = 1024;
-    GBufferMap_Height = 1024;
+    //Reflection Map Parameters
+    ReflectionMap_Width = 1024;
+    ReflectionMap_Height = 1024;
+
 
     // Set initial light parameters
     lightSpin = 150.0;
@@ -190,39 +184,18 @@ void Scene::InitializeScene()
 
     CHECKERROR;
     objectRoot = new Object(NULL, nullId);
-    DS_Root = new Object(NULL, nullId);
-    LightSphs_Root = new Object(NULL, nullId);
     
+    // Enable OpenGL depth-testing
+    glEnable(GL_DEPTH_TEST);
 
-    //This is for ShadowMap
-    Fbo = new FBO(ShadowMap_Width, ShadowMap_Height);
-    Fbo->CreateFBO(ShadowMap_Width, ShadowMap_Height);
-    //Fbo->CreateFBO_Multi(ShadowMap_Width, ShadowMap_Height);
+    Shadow_Fbo = new FBO(ShadowMap_Width, ShadowMap_Height);
+    Shadow_Fbo->CreateFBO(ShadowMap_Width, ShadowMap_Height);
 
-    
-    GB_Fbos = new FBO(GBufferMap_Width, GBufferMap_Height);
-    GB_Fbos->CreateFBO_Multi(GBufferMap_Width, GBufferMap_Height);
-    
-    //
-    //COMPUTE SHADER
-    CreateTextureObj = new CreateTexture();
-    Project2Methods = new Project2();
-    Project2Methods->CreateUniformBuffer();
+    Up_Fbo = new FBO(ReflectionMap_Width, ReflectionMap_Height);
+    Up_Fbo->CreateFBO(ReflectionMap_Width, ReflectionMap_Height);
+    Lower_Fbo = new FBO(ReflectionMap_Width, ReflectionMap_Height);
+    Lower_Fbo->CreateFBO(ReflectionMap_Width, ReflectionMap_Height);
 
-    //ShaderProgram* HorizCS, VerticalCS;
-    HorizCS = new ShaderProgram( );
-    HorizCS->AddShader("Horiz.comp", GL_COMPUTE_SHADER);
-    //HorizCS->LinkProgram_Compute(HorizCS->Hcs_PrgId);
-    HorizCS->LinkProgram();
-    //HorizCS->CreateTexture(ShadowMap_Width, ShadowMap_Height);
-    CreateTextureObj->CreatingTexture(ShadowMap_Width,ShadowMap_Height,&HorizCS->BlurSMTextureId);
-    //
-    VerticalCS = new ShaderProgram( );
-    VerticalCS->AddShader("Vertical.comp", GL_COMPUTE_SHADER);
-    //VerticalCS->LinkProgram_Compute(VerticalCS->Vcs_PrgId);
-    VerticalCS->LinkProgram();
-    //VerticalCS->CreateTexture(ShadowMap_Width, ShadowMap_Height, VerticalCS->BlurredShadowMapTextureId);
-    CreateTextureObj->CreatingTexture(ShadowMap_Width, ShadowMap_Height, &VerticalCS->FinalSMTextureId);
 
     //
     //Shadow Pass
@@ -231,22 +204,20 @@ void Scene::InitializeScene()
     ShadowProgram->AddShader("shadow.frag", GL_FRAGMENT_SHADER);
     glBindAttribLocation(ShadowProgram->programId, 0, "vertex");
     ShadowProgram->LinkProgram();
-    //
-    
-    //
-    //18-03-2025 --> 25-03-2025
-    GBufferProgram = new ShaderProgram();
-    GBufferProgram->AddShader("gbuffer.vert", GL_VERTEX_SHADER);
-    GBufferProgram->AddShader("gbuffer.frag", GL_FRAGMENT_SHADER);
-    glBindAttribLocation(GBufferProgram->programId, 0, "vertex");
-    glBindAttribLocation(GBufferProgram->programId, 1, "vertexNormal");
-    glBindAttribLocation(GBufferProgram->programId, 2, "vertexTexture");
-    glBindAttribLocation(GBufferProgram->programId, 3, "vertexTangent");
-    GBufferProgram->LinkProgram();
-    //
-    
 
     //
+    //Reflection Pass
+    ReflectionProgram = new ShaderProgram();
+    ReflectionProgram->AddShader("reflection.vert", GL_VERTEX_SHADER);
+    ReflectionProgram->AddShader("reflection.frag", GL_FRAGMENT_SHADER);
+    glBindAttribLocation(ReflectionProgram->programId, 0, "vertex");
+    glBindAttribLocation(ReflectionProgram->programId, 1, "vertexNormal");
+    glBindAttribLocation(ReflectionProgram->programId, 2, "vertexTexture");
+    glBindAttribLocation(ReflectionProgram->programId, 3, "vertexTangent");
+    ReflectionProgram->LinkProgram();
+    //////
+    //
+
     // Create the lighting shader program from source code files.
     // @@ Initialize additional shaders if necessary
     lightingProgram = new ShaderProgram();
@@ -256,19 +227,9 @@ void Scene::InitializeScene()
     glBindAttribLocation(lightingProgram->programId, 0, "vertex");
     glBindAttribLocation(lightingProgram->programId, 1, "vertexNormal");
     glBindAttribLocation(lightingProgram->programId, 2, "vertexTexture");
-    //glBindAttribLocation(lightingProgram->programId, 3, "vertexTangent");
+    glBindAttribLocation(lightingProgram->programId, 3, "vertexTangent");
     lightingProgram->LinkProgram();
-
     
-    //LocalLights Shader
-    LocalLightsProgram = new ShaderProgram();
-    LocalLightsProgram->AddShader("locallight.vert", GL_VERTEX_SHADER);
-    LocalLightsProgram->AddShader("locallight.frag", GL_FRAGMENT_SHADER);
-    glBindAttribLocation(LocalLightsProgram->programId, 0, "vertex");
-    glBindAttribLocation(LocalLightsProgram->programId, 1, "vertexNormal");
-    glBindAttribLocation(LocalLightsProgram->programId, 2, "vertexTexture");
-    glBindAttribLocation(LocalLightsProgram->programId, 3, "vertexTangent");
-    LocalLightsProgram->LinkProgram();
 
     // Create all the Polygon shapes
     proceduralground = new ProceduralGround(grndSize, 400,
@@ -283,15 +244,7 @@ void Scene::InitializeScene()
     Shape* QuadPolygons = new Quad();
     Shape* SeaPolygons = new Plane(2000.0, 50);
     Shape* GroundPolygons = proceduralground;
-    //
-    //FOR DEFERRED SHADING
-    Shape* ScreenQuadPolys = new Quad(10);
-    //
-    //Shape* LightSphere = new Sphere(32, 1);
-   
-    //LightSpheres.push_back(LightSphere);
-    
-    // 
+
     // Various colors used in the subsequent models
     glm::vec3 woodColor(87.0/255.0, 51.0/255.0, 35.0/255.0);
     glm::vec3 brickColor(134.0/255.0, 60.0/255.0, 56.0/255.0);
@@ -321,14 +274,15 @@ void Scene::InitializeScene()
     //SkyTexture = new Texture("skys/sky.jpg");
     SkyTexture = new Texture("skys/Ocean.png");
 
-
     FloorNormalT = new Texture("textures/6670-normal.jpg");
     PodiumNormalT = new Texture("textures/Brazilian_rosewood_pxr128_normal.png");
     RipplesNormalT = new Texture("textures/ripples_normalmap.png");
     BricksNormalT = new Texture("textures/Standard_red_pxr128_normal.png");
 
+    HDRP_SKYTexture = new HDRTexture("HDRP_Texture/Newport_Loft_Ref.hdr");
+    HDRP_IrradianceTxt = new HDRTexture("HDRP_Texture/Newport_Loft_Ref.irr.hdr");
 
-
+    
     // @@ To change an object's surface parameters (Kd, Ks, or alpha),
     // modify the following lines.
     central    = new Object(NULL, nullId);
@@ -337,19 +291,18 @@ void Scene::InitializeScene()
     floor = new Object(FloorPolygons, floorId, floorColor, black, RoughSurface, floorTexture, FloorNormalT);//texture
     teapot = new Object(TeapotPolygons, teapotId, brassColor, lowSpecular, PolishedSurface, teapotTexture);//texture
     podium = new Object(BoxPolygons, boxId, glm::vec3(woodColor), lowSpecular, ModerateSmoothSurface, podiumTexture, PodiumNormalT);//texture
-    sky        = new Object(SpherePolygons, skyId, black, black,0, SkyTexture);
+    //sky        = new Object(SpherePolygons, skyId, black, black,0, SkyTexture);
+    sky        = new Object(SpherePolygons, skyId, black, black,0, HDRP_SKYTexture);
     objectRoot->add(sky, Scale(2000.0, 2000.0, 2000.0));
     ground = new Object(GroundPolygons, groundId, grassColor, black, RoughSurface, groundTexture);//texture
-    sea        = new Object(SeaPolygons, seaId, waterColor, lowSpecular, PolishedSurface, SkyTexture, RipplesNormalT);
+    //sea        = new Object(SeaPolygons, seaId, waterColor, lowSpecular, PolishedSurface, SkyTexture, RipplesNormalT);
+    sea        = new Object(SeaPolygons, seaId, waterColor, lowSpecular, PolishedSurface, HDRP_SKYTexture, RipplesNormalT);
     leftFrame  = FramedPicture(Identity, lPicId, BoxPolygons, QuadPolygons, NULL);//No texture
     rightFrame = FramedPicture(Identity, rPicId, BoxPolygons, QuadPolygons,HouseTexture);//texture
     spheres    = SphereOfSpheres(SpherePolygons);
 
-    ScreenQuad = new Object(ScreenQuadPolys, ScreenQuadId);
 
-   
-
-    //CHECKERROR;
+    CHECKERROR;
 
 #ifdef REFL
     spheres->drawMe = true;
@@ -390,37 +343,8 @@ void Scene::InitializeScene()
         room->add(leftFrame, Translate(-1.5, 9.85, 1.)*Scale(0.8, 0.8, 0.8));
         room->add(rightFrame, Translate( 1.5, 9.85, 1.)*Scale(0.8, 0.8, 0.8)); }
 
-    
+    CHECKERROR;
 
-    //FOR DEFERRED SHADING 
-    if (fullPolyCount) {
-        DS_Root->add(ScreenQuad, glm::mat4(1.0));
-    }
-
-
-    CreatePointLights( );
-    CreateSSBO();//creating SSBO
-    /*
-    for (int i = 0; i < (LightSpheres.size() - 1); i++) {
-        Object* LightSphObj = new Object(LightSpheres[i], LightSph);
-        LightSphObjs.push_back(LightSphObj);
-    }
-    */
-    
-    if (fullPolyCount) {
-        glm::vec3 TempPos;
-        float TempScale;
-        for (int i = 0; i < (pointLights.size() - 1); i++) {
-            //
-            TempPos = pointLights[i].position;
-            TempScale = pointLights[i].radius/12;
-            //LightSphs_Root->add(LightSphObj, glm::mat4(1.0));
-            LightSphs_Root->add(LightSphObjs[i], Translate(TempPos.x, TempPos.y, 0) * Scale(TempScale, TempScale, TempScale));
-            //
-        }
-    }
-    
-    //
     // Options menu stuff
     show_demo_window = false;
 }
@@ -439,7 +363,7 @@ void Scene::DrawMenu()
             if (ImGui::MenuItem("Draw ground/sea", "", ground->drawMe)){ground->drawMe ^= true;
                 							sea->drawMe = ground->drawMe;}
             ImGui::EndMenu(); }
-        
+                	
         // This menu demonstrates how to provide the user a choice
         // among a set of choices.  The current choice is stored in a
         // variable named "mode" in the application, and sent to the
@@ -450,50 +374,11 @@ void Scene::DrawMenu()
             if (ImGui::MenuItem("Do nothing 1", "",		mode==1)) { mode=1; }
             if (ImGui::MenuItem("Do nothing 2", "",		mode==2)) { mode=2; }
             ImGui::EndMenu(); }
-        
+    
+        //ImGui::SliderFloat("e",&e, 0.0f, 10.0f);
 
-        ImGui::EndMainMenuBar(); }  
-    ImGui::GetIO().FontGlobalScale = 1.5f;
-    ImGui::Text("No.of Lights");
-    ImGui::SliderFloat("", &Value, 1.0f, 1000.0f, "%.0f", 1.0f);
 
-    ImGui::Separator();
-    ImGui::Separator();
-    //
-    //KernalSize
-    ImGui::Text("Kernal Value: %d", Project2Methods->KernalValue());
-    if (ImGui::Button("Increase")) {
-        Project2Methods->IncrementKernal();
-    }
-    if (ImGui::Button("Decrease")) {
-        
-        Project2Methods->DecrementKernal();
-    }
-
-    ImGui::Separator();
-    ImGui::Separator();
-
-   // ImGui::Text("Algo Value: %d", AlgoNum);
-    ImGui::Text("AlgoNum Value: %d", AlgoNum);
-    if (ImGui::Button("<")) {
-
-        if (AlgoNum > 0 && AlgoNum < 3) {
-            AlgoNum--;
-        }
-        
-    }
-    ImGui::SameLine();
-    ImGui::TextUnformatted(AlgoNames[(AlgoNum)].c_str());
-    ImGui::SameLine();
-    if (ImGui::Button(">")) {
-
-        if (AlgoNum >= 0 && AlgoNum < 2) {
-            AlgoNum++;
-        }
-    }
-
-    ImGui::Separator();
-
+        ImGui::EndMainMenuBar(); }
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
@@ -504,7 +389,29 @@ void Scene::BuildTransforms()
     // following hard coded values for WorldProj and WorldView with
     // transformation matrices calculated from variables such as spin,
     // tilt, tr, ry, front, and back.
-   
+    
+    /*
+    WorldProj[0][0]=  2.368;
+    WorldProj[1][0]= -0.800;
+    WorldProj[2][0]=  0.000;
+    WorldProj[3][0]=  0.000;
+    WorldProj[0][1]=  0.384;
+    WorldProj[1][1]=  1.136;
+    WorldProj[2][1]=  2.194;
+    WorldProj[3][1]=  0.000;
+    WorldProj[0][2]=  0.281;
+    WorldProj[1][2]=  0.831;
+    WorldProj[2][2]= -0.480;
+    WorldProj[3][2]= 42.451;
+    WorldProj[0][3]=  0.281;
+    WorldProj[1][3]=  0.831;
+    WorldProj[2][3]= -0.480;
+    WorldProj[3][3]= 43.442;
+    WorldView[3][0]= 0.0;
+    WorldView[3][1]= 0.0;
+    WorldView[3][2]= 0.0;
+    */
+    
     rx = ry * ((float)width / (float)height);
     if (transformation_mode == false) {
     
@@ -536,7 +443,7 @@ void Scene::BuildTransforms()
     std::cout<<std::endl;
     std::cout << glm::to_string(glm::lookAt(lightPos, glm::vec3(0.0f, 0.0f, 0.0f), worldUp)) << std::endl;
     */
-
+    
 //  L_ViewMatrix = LookAt(lightPos, lightDir, upDir);
 
     Rx = 40/lightDist;
@@ -545,11 +452,13 @@ void Scene::BuildTransforms()
     L_ProjectionMatrix = Perspective(Rx, Ry, front, back/5);//back -> 5000
     //std::cout << glm::to_string(L_ProjectionMatrix) << std::endl;
     //
+    //Lighting Claculations
     B = Translate(0.5, 0.5, 0.5) * Scale(0.5, 0.5, 0.5);
     ShadowMatrix = B * L_ProjectionMatrix * L_ViewMatrix;
     //
     //
-      
+    
+
     //
     //
     // @@ Print the two matrices (in column-major order) for
@@ -560,113 +469,6 @@ void Scene::BuildTransforms()
     */
     
 }
-
-
-void Scene::CreatePointLights() {
-
-    unsigned int i = 0;
-    unsigned int j = 0;
-
-    float  Xpos = -20.0f;
-    float Ypos = -20.0f; 
-    float temp = Ypos;
-    
-   // Xpos = 0;
-   // Ypos = 0;
-   // temp = Ypos;
-
-    //
-    //position starts from 
-    // -5 to -50
-    //
-
-    //for (i = 0; i <4; i++) {
-      // for (j = 0; j < 4; j++) {
-
-    for (i = 0; i < 40; i++) {
-       for (j = 0; j < 25; j++) {
-            
-            PointLightData LightsData;
-
-            LightsData.position = glm::vec3(Xpos, Ypos, 0);
-            LightsData.color = RandomColor( );
-            LightsData.intensity = RandomIntensity( );
-            LightsData.radius = RandomRadius( );
-            //LightsData.radius = 2;
-            
-            pointLights.push_back(LightsData);
-
-            Shape* LightSphere = new Sphere(32, LightsData.radius);
-            LightSpheres.push_back(LightSphere);//LightSpheres is vector for storing Shape
-
-            Object* LightSphObj = new Object(LightSphere, LightSph);
-            LightSphObjs.push_back(LightSphObj);
-            
-            Ypos += 1.5f;
-
-        }
-            Xpos += 1.5f;
-            Ypos = temp;
-
-    }
-    
-}
-
-
-glm::vec3 Scene::RandomColor( ) {
-
-    static std::random_device rd;
-    static std::mt19937 gen(rd());
-    static std::uniform_real_distribution<> dis(0.0f, 1.0f);
-
-    float r = dis(gen);
-    float g = dis(gen);
-    float b = dis(gen);
-
-    // Round to 1 decimal place
-    r = std::round(r * 10.0f) / 10.0f;
-    g = std::round(g * 10.0f) / 10.0f;
-    b = std::round(b * 10.0f) / 10.0f;
-
-
-    return glm::vec3(r, g, b);
-
-}
-
-
-
-glm::vec3 Scene::RandomIntensity( ) {
-
-    static std::random_device rd;
-    static std::mt19937 gen(rd());
-    static std::uniform_real_distribution<> dis(0.5f, 3.0f);
-
-    float r = dis(gen);
-    float g = dis(gen);
-    float b = dis(gen);
-
-    // Round to 2 decimal places
-    r = std::round(r * 100.0f) / 100.0f;
-    g = std::round(g * 100.0f) / 100.0f;
-    b = std::round(b * 100.0f) / 100.0f;
-
-    //std::cout << "Random Color is  " << r <<" "<<g <<" " <<b << std::endl;
-    return glm::vec3(r, g, b);
-
-}
-
-
-int Scene::RandomRadius() {
-
-    const int minRadius = 3, maxRadius = 4;
-
-    static std::random_device rd;
-    static std::mt19937 gen(rd());
-    static std::uniform_int_distribution<> dis(minRadius, maxRadius);
-
-    return dis(gen);
-}
-
 
 ////////////////////////////////////////////////////////////////////////
 // Procedure DrawScene is called whenever the scene needs to be
@@ -700,18 +502,11 @@ void Scene::DrawScene()
     }
     
 
-    //CHECKERROR;
+    CHECKERROR;
     // Calculate the light's position from lightSpin, lightTilt, lightDist
     lightPos = glm::vec3(lightDist*cos(lightSpin*rad)*sin(lightTilt*rad),
                          lightDist*sin(lightSpin*rad)*sin(lightTilt*rad), 
                          lightDist*cos(lightTilt*rad));
-
-
-    //
-    float DistLightToOrigin = glm::length(lightPos);
-    z_near = DistLightToOrigin - 40;
-    z_far = DistLightToOrigin + 40;
-
 
     // Update position of any continuously animating objects
     double atime = 360.0*glfwGetTime()/36;
@@ -740,385 +535,225 @@ void Scene::DrawScene()
     //   Unset the shader
     ////////////////////////////////////////////////////////////////////////////////
 
-    //CHECKERROR;
-    int loc, programId, ShadowPrgId, GBufferPrgId, LocalLightsPrgId, HorzPrjId, VerticalPrjId;
+    CHECKERROR;
+    int loc, programId, ShadowPrgId;
 
     ////////////////////////////////////////////////////////////////////////////////
-    // G-Buffer pass - STARTING
+    // Shadow pass
     ////////////////////////////////////////////////////////////////////////////////
-    glEnable(GL_DEPTH_TEST);
-
-    GB_Fbos->BindFBO();
+    //Create FBO
     //
-    glViewport(0, 0, GBufferMap_Width, GBufferMap_Height);
-    glClearColor(0.0, 0.0, 0.0, 0.0);
+    // Choose the lighting shader
+    ShadowProgram->UseShader();
+    ShadowPrgId = ShadowProgram->programId;
+    //
+    // Set the viewport, and clear the screen
+    Shadow_Fbo->BindFBO();
+
+    glViewport(0, 0, ShadowMap_Width, ShadowMap_Height);
+    glClearColor(0.5, 0.5, 0.5, 1.0);
+    //glClear(GL_DEPTH_BUFFER_BIT);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     //
-    GBufferProgram->UseShader( );
-    GBufferPrgId = GBufferProgram->programId;
+
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_FRONT);
+
+
+    loc = glGetUniformLocation(ShadowPrgId, "L_ViewMatrix");
+    glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(L_ViewMatrix));
+    loc = glGetUniformLocation(ShadowPrgId, "L_ProjectionMatrix");
+    glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(L_ProjectionMatrix));
+    
+
+    CHECKERROR;
+    // Draw all objects (This recursively traverses the object hierarchy.)
+    objectRoot->Draw(ShadowProgram, Identity);
+    CHECKERROR;
+
+    glDisable(GL_CULL_FACE);
+
+    //For the DepthTest
+    Shadow_Fbo->UnbindFBO();
     //
-    loc = glGetUniformLocation(GBufferPrgId, "WorldProj");
+    // Turn off the shader
+    ShadowProgram->UnuseShader();
+    //
+    ////////////////////////////////////////////////////////////////////////////////
+    // End of Shadow pass
+    ////////////////////////////////////////////////////////////////////////////////
+
+
+
+    ////////////////////////////////////////////////////////////////////////////////
+    // Reflections pass
+    ////////////////////////////////////////////////////////////////////////////////
+    //Upper Fbo
+    room->drawMe = false;
+    teapot->drawMe = false;
+    ground->drawMe = false;
+    sea->drawMe = false;
+    //
+    ReflectionProgram->UseShader();
+    programId = ReflectionProgram->programId;
+    //
+    Up_Fbo->BindFBO();
+    //
+    glViewport(0, 0, ReflectionMap_Width, ReflectionMap_Height);
+    glClearColor(0.5, 0.5, 0.5, 1.0);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    //
+    loc = glGetUniformLocation(programId, "WorldProj");
     glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(WorldProj));
-    loc = glGetUniformLocation(GBufferPrgId, "WorldView");
+    loc = glGetUniformLocation(programId, "WorldView");
     glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(WorldView));
-    loc = glGetUniformLocation(GBufferPrgId, "WorldInverse");
+    loc = glGetUniformLocation(programId, "WorldInverse");
     glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(WorldInverse));
-    loc = glGetUniformLocation(GBufferPrgId, "lightPos");
+    loc = glGetUniformLocation(programId, "lightPos");
     glUniform3fv(loc, 1, &(lightPos[0]));
-    loc = glGetUniformLocation(GBufferPrgId, "mode");
+    loc = glGetUniformLocation(programId, "mode");
     glUniform1i(loc, mode);
-    loc = glGetUniformLocation(GBufferPrgId, "Light");
-    glUniform3fv(loc, 1, &(Light[0]));
-    loc = glGetUniformLocation(GBufferPrgId, "Ambient");
-    glUniform3fv(loc, 1, &(Ambient[0]));
-    loc = glGetUniformLocation(GBufferPrgId, "ShadowMatrix");
-    glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(ShadowMatrix));
 
-    objectRoot->Draw(GBufferProgram, Identity);
-
-    GBufferProgram->UnuseShader();
-
-    GB_Fbos->UnbindFBO();
     //
+    loc = glGetUniformLocation(programId, "Light");
+    glUniform3fv(loc, 1, &(Light[0]));
+    loc = glGetUniformLocation(programId, "Ambient");
+    glUniform3fv(loc, 1, &(Ambient[0]));
+    loc = glGetUniformLocation(programId, "ShadowMatrix");
+    glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(ShadowMatrix));
+    //
+    Shadow_Fbo->BindTexture(2, programId, "shadowMap");
+    //
+    loc = glGetUniformLocation(programId, "SIGN");
+    glUniform1f(loc,1.0);//upper map
+    //
+    loc = glGetUniformLocation(programId, "FLAG");
+    glUniform1f(loc, true);//upper map
+
+    CHECKERROR;
+    // Draw all objects (This recursively traverses the object hierarchy.)
+    objectRoot->Draw(ReflectionProgram, Identity);
+
+    //Shadow_Fbo->UnbindTexture(2);
+    
+    Up_Fbo->UnbindFBO();
+    
+    //Reflection Pass 2 for 
+    //Lower Fbo 
+    //
+
+    Lower_Fbo->BindFBO();
+    glViewport(0, 0, ReflectionMap_Width, ReflectionMap_Height);
+    glClearColor(0.5, 0.5, 0.5, 1.0);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    loc = glGetUniformLocation(programId, "SIGN");
+    glUniform1f(loc, -1.0);//lower map
+
+    loc = glGetUniformLocation(programId, "FLAG");
+    glUniform1f(loc, false);//upper map
+
+    //Shadow_Fbo->BindTexture(2, programId, "shadowMap");
+
+    objectRoot->Draw(ReflectionProgram, Identity);
+    CHECKERROR
+    Shadow_Fbo->UnbindTexture(2);
+    CHECKERROR
+    Lower_Fbo->UnbindFBO();
+    CHECKERROR
+    // Turn off the shader
+    ReflectionProgram->UnuseShader();
+    CHECKERROR
     ////////////////////////////////////////////////////////////////////////////////
-    // G-Buffer pass - ENDING
+    // End of Reflections pass
     ////////////////////////////////////////////////////////////////////////////////
-    //if (CHECKing == false) {
-        
-        ////////////////////////////////////////////////////////////////////////////////
-        // Shadow pass
-        ////////////////////////////////////////////////////////////////////////////////
-        //Create FBO
-        //
-        glEnable(GL_DEPTH_TEST);
-        // Set the viewport, and clear the screen 
-        Fbo->BindFBO();
 
-        //
-        glViewport(0, 0, ShadowMap_Width, ShadowMap_Height);
-        glClearColor(0.5, 0.5, 0.5, 1.0);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        //
-        //
-        // Choose the lighting shader
-        ShadowProgram->UseShader();
-        ShadowPrgId = ShadowProgram->programId;
-
-        glEnable(GL_CULL_FACE);
-        glCullFace(GL_FRONT);
-
-        glUniform1f(glGetUniformLocation(ShadowPrgId, "z0"), z_near);
-        glUniform1f(glGetUniformLocation(ShadowPrgId, "z1"), z_far);
-
-        loc = glGetUniformLocation(ShadowPrgId, "L_ViewMatrix");
-        glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(L_ViewMatrix));
-        loc = glGetUniformLocation(ShadowPrgId, "L_ProjectionMatrix");
-        glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(L_ProjectionMatrix));
-
-
-        //CHECKERROR;
-        // Draw all objects (This recursively traverses the object hierarchy.)
-        objectRoot->Draw(ShadowProgram, Identity);
-        //CHECKERROR;
-
-        glDisable(GL_CULL_FACE);
-
-        // Turn off the shader
-        ShadowProgram->UnuseShader();
-        //For the DepthTest
-        Fbo->UnbindFBO();
-        //
-        //
-        ////////////////////////////////////////////////////////////////////////////////
-        // End of Shadow pass
-        ////////////////////////////////////////////////////////////////////////////////
-
-        ////////////////////////////////////////////////////////////////////////////////
-        // Compute Shader
-        ////////////////////////////////////////////////////////////////////////////////
-        
-        HorizCS->UseShader_CS(0);
-        HorzPrjId = HorizCS->programId;
-        //Fbo->BindTexture_CS(0, HorzPrjId, "shadowMap");//
-        Fbo->BindImageTexture_CS(0,GL_READ_ONLY, GL_RGBA32F, HorzPrjId, "shadowMap");//
-        //Fbo->BindImageTexture_CS(1, GL_WRITE_ONLY, GL_RGBA32F, HorzPrjId, "blurredShadowMap");//
-        HorizCS->BindImageTexture(1, HorizCS->BlurSMTextureId, GL_WRITE_ONLY,HorzPrjId,"blurredShadowMap");
-        
-        //UnifromBuffer
-        loc = glGetUniformBlockIndex(HorzPrjId, "blurKernal");
-        glUniformBlockBinding(HorzPrjId, loc, Project2Methods->bindpoint);
-
-        GLint uniformLocation1 = glGetUniformLocation(HorzPrjId, "blurWidth");
-        glUniform1i(uniformLocation1, Project2Methods->blurWidth);
-
-
-        //
-        
-        //HorizCS->BindImageTexture(1, HorizCS->tempBlurTextureId, GL_WRITE_ONLY,HorzPrjId,"blurredShadowMap");
-        //HorizCS->DispatchComputerShader(ShadowMap_Width, ShadowMap_Height);
-        HorizCS->DispatchComputerShader(1024, 1024, 128, 1);
-
-        VerticalCS->UseShader_CS(0);
-        VerticalPrjId = VerticalCS->programId;
-        VerticalCS->BindImageTexture(0,HorizCS->BlurSMTextureId, GL_READ_ONLY, VerticalPrjId, "blurredShadowMap");
-        VerticalCS->BindImageTexture(1,VerticalCS->FinalSMTextureId, GL_WRITE_ONLY, VerticalPrjId, "finalShadowMap");
-        
-        loc = glGetUniformBlockIndex(VerticalPrjId, "blurKernal");
-        glUniformBlockBinding(VerticalPrjId, loc, Project2Methods->bindpoint);
-
-        GLint uniformLocation = glGetUniformLocation(VerticalPrjId, "blurWidth");
-        glUniform1i(uniformLocation, Project2Methods->blurWidth);
-
-        
-        //VerticalCS->DispatchComputerShader(ShadowMap_Width, ShadowMap_Height);
-        VerticalCS->DispatchComputerShader(1024, 1024, 1, 128);
-        
-        ////////////////////////////////////////////////////////////////////////////////
-        // Compute Shader
-        ////////////////////////////////////////////////////////////////////////////////
-
-
-
-        //if (DepthFlag == true){
-
-        ////////////////////////////////////////////////////////////////////////////////
-        // Lighting pass
-        ////////////////////////////////////////////////////////////////////////////////
-        glDisable(GL_DEPTH_TEST);
-
+    
+    //////////////////////////////////////////////////////////////////////////////////
+    //// Lighting pass
+    //////////////////////////////////////////////////////////////////////////////////
+    teapot->drawMe = true;
+        CHECKERROR
         // Choose the lighting shader
         lightingProgram->UseShader();
+        CHECKERROR
         programId = lightingProgram->programId;
-
+        CHECKERROR
         // Set the viewport, and clear the screen
         glViewport(0, 0, width, height);
         glClearColor(0.5, 0.5, 0.5, 1.0);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-
+        //
         // @@ The scene specific parameters (uniform variables) used by
         // the shader are set here.  Object specific parameters are set in
         // the Draw procedure in object.cpp
-        
-        glUniform1f(glGetUniformLocation(programId, "z0"), z_near);
-        glUniform1f(glGetUniformLocation(programId, "z1"), z_far);
-
-
-        GLint uniformLocation3 = glGetUniformLocation(programId, "AlgoNum");
-        glUniform1i(uniformLocation3, AlgoNum);
-
-
         //
-        Fbo->BindTexture(2, programId, "shadowMap");//
-        GB_Fbos->BindTexture4(3, programId, "WorldPosMap");
-        GB_Fbos->BindTexture4(4, programId, "NMap");
-        GB_Fbos->BindTexture4(5, programId, "KdMap");
-        GB_Fbos->BindTexture4(6, programId, "KaMap");
-        //VerticalCS->BindTexture(7, programId, "BlurredShadowMap");
-        CreateTextureObj->BindTexture(7, programId, "BlurredShadowMap", VerticalCS->FinalSMTextureId);
-
-        //VerticalCS->BindImageTexture(7, VerticalCS->BlurredShadowMapTextureId, );//From here
-
-        /*
+        CHECKERROR
+        //
         loc = glGetUniformLocation(programId, "WorldProj");
         glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(WorldProj));
         loc = glGetUniformLocation(programId, "WorldView");
         glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(WorldView));
-        */
-
         loc = glGetUniformLocation(programId, "WorldInverse");
         glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(WorldInverse));
-        loc = glGetUniformLocation(programId, "lightPos1");
+        loc = glGetUniformLocation(programId, "lightPos");
         glUniform3fv(loc, 1, &(lightPos[0]));
-        loc = glGetUniformLocation(programId, "mode");//not using
+        loc = glGetUniformLocation(programId, "mode");
         glUniform1i(loc, mode);
-        loc = glGetUniformLocation(programId, "Light");//light position
+        loc = glGetUniformLocation(programId, "Light");
         glUniform3fv(loc, 1, &(Light[0]));
-        loc = glGetUniformLocation(programId, "Ambient");//
+        loc = glGetUniformLocation(programId, "Ambient");
         glUniform3fv(loc, 1, &(Ambient[0]));
         loc = glGetUniformLocation(programId, "ShadowMatrix");
         glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(ShadowMatrix));
-        
 
+        /*
+        loc = glGetUniformLocation(programId, "e");
+        glUniform1f(loc, -1.0);//lower map
+        */
+
+        CHECKERROR
+        //
+        //
+        //Upper Reflection Map
+        //Lower Reflection Map
+        CHECKERROR;
+        Shadow_Fbo->BindTexture(2, programId, "shadowMap");
+        Up_Fbo->BindTexture(3, programId, "UpMap");
+        CHECKERROR;
+        Lower_Fbo->BindTexture(4, programId, "LowerMap");
+        HDRP_IrradianceTxt->BindTexture(5, programId, "IrradianceMap");
+        HDRP_SKYTexture->BindTexture(6, programId, "SkyMapHDR");
+        //
+        CHECKERROR;
+        //
         /*
         glActiveTexture(GL_TEXTURE2); // Activate texture unit 2
         glBindTexture(GL_TEXTURE_2D, Fbo->GetShadowMapTexture()); // Load texture into it
         loc = glGetUniformLocation(programId, "shadowMap");
         glUniform1i(loc, 2);
         */
-
-        //CHECKERROR;
+         
+        CHECKERROR;
         // Draw all objects (This recursively traverses the object hierarchy.)
-        //objectRoot->Draw(lightingProgram, Identity);
-        DS_Root->Draw(lightingProgram, Identity);
+        objectRoot->Draw(lightingProgram, Identity);
 
-        Fbo->UnbindTexture(2);
-        //GB_Fbos->UnbindTexture(3);
-        //GB_Fbos->UnbindTexture(4);
-        //GB_Fbos->UnbindTexture(5);
-        //GB_Fbos->UnbindTexture(6);
+        Shadow_Fbo->UnbindTexture(2);
         //
-        //Fbo->UnbindFBO();
-
+        Up_Fbo->UnbindTexture(3);
+        Lower_Fbo->UnbindTexture(4);
+        HDRP_IrradianceTxt->UnbindTexture(5);
+        HDRP_SKYTexture->UnbindTexture(6);
+        //
         // Turn off the shader
         lightingProgram->UnuseShader();
         ////////////////////////////////////////////////////////////////////////////////
         // End of Lighting pass
         ////////////////////////////////////////////////////////////////////////////////
-    //}
-
-    //    //
-    //    ////////////////////////////////////////////////////////////////////////////////
-    //    // Start of Local lights pass
-    //    ////////////////////////////////////////////////////////////////////////////////
-    //    //
-    //    glDisable(GL_DEPTH_TEST);
-    //    glEnable(GL_BLEND);
-    //    glBlendFunc(GL_ONE, GL_ONE);
-    //    //
-    //    glEnable(GL_CULL_FACE);
-    //    //glCullFace(GL_BACK);
-    //    glCullFace(GL_FRONT);
-
-    //    LocalLightsProgram->UseShader();
-    //    LocalLightsPrgId = LocalLightsProgram->programId;
-    //    
-    //    /*
-    //    glViewport(0, 0, width, height);
-    //    glClearColor(0.5, 0.5, 0.5, 1.0);
-    //    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    //    */
-    //    //
-    //    GB_Fbos->BindTexture4(3, LocalLightsPrgId, "WorldPosMap");
-    //    GB_Fbos->BindTexture4(4, LocalLightsPrgId, "NMap");
-    //    GB_Fbos->BindTexture4(5, LocalLightsPrgId, "KdMap");
-    //    GB_Fbos->BindTexture4(6, LocalLightsPrgId, "KaMap");
-    //    //
-    //    loc = glGetUniformLocation(LocalLightsPrgId, "WorldProj");
-    //    glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(WorldProj));
-    //    loc = glGetUniformLocation(LocalLightsPrgId, "WorldView");
-    //    glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(WorldView));
-    //    loc = glGetUniformLocation(LocalLightsPrgId, "WorldInverse");
-    //    glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(WorldInverse));
-    //    //
-    //    // 
-    //    //loc = glGetUniformLocation(LocalLightsPrgId, "Light");
-    //    //glUniform3fv(loc, 1, &(Light[0]));
-    //    //loc = glGetUniformLocation(LocalLightsPrgId, "Ambient");
-    //    //glUniform3fv(loc, 1, &(Ambient[0]));
-    //    
-    //    loc = glGetUniformLocation(programId, "Ambient");//
-    //    glUniform3fv(loc, 1, &(Ambient[0]));
-    //    //
-
-    //    for (int i = 0; i < pointLights.size(); i++) {
-
-    //        glUniform1i(glGetUniformLocation(LocalLightsPrgId, "lightIndex"), i);
-
-    //        LightSphs_Root->Draw(LocalLightsProgram, Identity,i);
-
-    //    }
-
-
-    //    glDisable(GL_BLEND);
-    //    glDisable(GL_CULL_FACE);
-    //    
-    //    LocalLightsProgram->UseShader();
-
-    //    //
-    //    ////////////////////////////////////////////////////////////////////////////////
-    //    // End of Local lights pass
-    //    ////////////////////////////////////////////////////////////////////////////////
-    //    //
-
-    //}//CHECKing
+        
     PreviousTime = glfwGetTime();
 }
 
 
-
-void Scene::PrjWid2025() {
-
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
-
-        // Create a window for the sidebar
-        ImGui::Begin("Sidebar", NULL, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
-
-        // Set the width of the sidebar
-        ImGui::SetWindowSize(ImVec2(200, 0));
-
-        // Create buttons or menu items in the sidebar
-        if (ImGui::Button("Home"))
-        {
-            // Handle the Home button action
-        }
-        if (ImGui::Button("Settings"))
-        {
-            // Handle the Settings button action
-        }
-        if (ImGui::Button("About"))
-        {
-            // Handle the About button action
-        }
-
-        // You can add more buttons or elements here as needed
-
-        ImGui::End(); // End the sidebar window
-
-        // Now you can render the rest of your UI here, such as the content area
-        ImGui::Begin("Main Content");
-        ImGui::Text("This is the main content area!");
-        ImGui::End();
-
-        ImGui::EndFrame();
-}
-
-
-//SSBO related code
-void Scene::CreateSSBO( ) {
-
-    // Generate and bind SSBO
-    glGenBuffers(1, &ssboID);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssboID);
-    
-    //size_t lightsSize = pointLights.size()
-    size_t lightsSize = pointLights.size() * sizeof(PointLightData);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, lightsSize, pointLights.data(), GL_DYNAMIC_DRAW);
-
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, ssboID);//binding value is the one that binds
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // Unbind
-    //CHECKERROR;
-}
-
-
-void Scene::PopulateSSBOFromTextures() {
-    //glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssboID);
-
-    //// Create a vector to store texture data
-    //std::vector<glm::vec4> textureData(4);
-
-    //// Bind each texture and read its data
-    //for (int i = 0; i < 4; ++i) {
-    //    glBindTexture(GL_TEXTURE_2D, textureIDs[i]); // Use your texture ID array
-    //    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_FLOAT, &textureData[i]);
-    //}
-
-    //// Upload data to SSBO
-    //glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, 4 * sizeof(glm::vec4), textureData.data());
-
-    //glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // Unbind SSBO
-    //CHECKERROR;
-}
-
-
-void Scene::LoadTextureIDs() {
-
-   /* textureIDs.push_back(3);
-    textureIDs.push_back(4);
-    textureIDs.push_back(5);
-    textureIDs.push_back(6);*/
-
-}
 
