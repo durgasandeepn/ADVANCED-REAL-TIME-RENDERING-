@@ -11,10 +11,10 @@ class ShaderProgram
 {
 public:
     int programId;
-    GLuint BlurSMTextureId, FinalSMTextureId, AOHorzTexture_Id, AOFinalTexture_Id;
+    GLuint BlurSMTextureId, FinalSMTextureId;
 
 
-    ShaderProgram();//constructor
+    ShaderProgram();
     void AddShader(const char* fileName, const GLenum type);
     void LinkProgram();
     void UseShader();

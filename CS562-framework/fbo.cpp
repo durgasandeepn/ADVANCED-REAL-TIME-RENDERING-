@@ -14,7 +14,9 @@ using namespace gl;
 
 #include "glu.h"
 
+
 #define CHECKERROR {GLenum err = glGetError(); if (err != GL_NO_ERROR) { fprintf(stderr, "OpenGL error (at line Fbo.cpp:%d): %s\n", __LINE__, gluErrorString(err)); exit(-1);} }
+
 
 
 FBO::FBO(const int w, const int h) {
@@ -56,21 +58,20 @@ void FBO::CreateFBO(const int w, const int h)
 
     glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT,
                               GL_TEXTURE_2D, textureID, 0);
-    
+
     // Check for completeness/correctness
     int status = (int)glCheckFramebufferStatusEXT(GL_FRAMEBUFFER_EXT);
     if (status != int(GL_FRAMEBUFFER_COMPLETE_EXT))
         printf("FBO Error: %d\n", status);
 
-    //glObjectLabel(GL_FRAMEBUFFER, fboID, -1, "DEBUG FBO SHADOW");
-    //glObjectLabel(GL_TEXTURE, textureID, -1, "DEBUG FBO TEXTURE");
+    glObjectLabel(GL_FRAMEBUFFER, fboID, -1, "DEBUG FBO SHADOW");
+    glObjectLabel(GL_TEXTURE, textureID, -1, "DEBUG FBO TEXTURE");
 
     //
     // Unbind the fbo until it's ready to be used
     glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
     CHECKERROR;
 }
-
 
 
 void FBO::CreateFBO_Multi(const int w, const int h)
@@ -145,12 +146,12 @@ void FBO::CreateFBO_Multi(const int w, const int h)
 
     glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT3_EXT,
         GL_TEXTURE_2D, textureID4, 0);
-  
-    
+
+
     GLenum bufs[4] = { GL_COLOR_ATTACHMENT0_EXT , GL_COLOR_ATTACHMENT1_EXT ,
         GL_COLOR_ATTACHMENT2_EXT , GL_COLOR_ATTACHMENT3_EXT };
     glDrawBuffers(4, bufs);
-    
+
 
     //
     // Check for completeness/correctness
@@ -164,70 +165,13 @@ void FBO::CreateFBO_Multi(const int w, const int h)
     CHECKERROR;
 }
 
-
-unsigned int FBO::getFBOID( ) {
-    return fboID;
-}
-
-void FBO::BindFBO() { 
-    glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fboID); 
-    //CHECKERROR;
-}
-
-void FBO::UnbindFBO() { 
-    glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0); 
-    //CHECKERROR;
-}
-
-void FBO::BindTexture(const int unit, const int programId, const std::string& name)
-{//
-
-    glActiveTexture((gl::GLenum)((int)GL_TEXTURE0 + unit));
-    //CHECKERROR;
-    glBindTexture(GL_TEXTURE_2D, textureID);
-    //CHECKERROR;
-    int loc = glGetUniformLocation(programId, name.c_str());
-    glUniform1i(loc, unit);
-}
-
-
-void FBO::BindImageTexture_CS(const int unit,const GLenum access, const GLenum format,int ShaderId, char* name)
-{//
-
-   glBindImageTexture(unit, textureID, 0, GL_FALSE, 0, access, format);
-   int loc = glGetUniformLocation(ShaderId, name);
-   glUniform1i(loc, unit);
-
-}
-
-
-void FBO::BindImageTexture_AO(const int unit, const GLenum access, const GLenum format, int ShaderId, char* name) {
-
-    if (unit == 2) {
-    
-        glBindImageTexture(unit, textureID, 0, GL_FALSE, 0, access, format);
-        int loc = glGetUniformLocation(ShaderId, name);
-        glUniform1i(loc, unit);
-    
-    }
-    else if (unit == 3) {
-
-        glBindImageTexture(unit, textureID2, 0, GL_FALSE, 0, access, format);
-        int loc = glGetUniformLocation(ShaderId, name);
-        glUniform1i(loc, unit);
-
-    }
-
-}
-
-
 void FBO::BindTexture4(const int unit, const int programId, const std::string& name)
 {//
 
     glActiveTexture((gl::GLenum)((int)GL_TEXTURE0 + unit));
     //CHECKERROR;
     //glBindTexture(GL_TEXTURE_2D, textureID);
-    
+
     if (unit == 3) {
         glBindTexture(GL_TEXTURE_2D, textureID);
     }
@@ -240,79 +184,50 @@ void FBO::BindTexture4(const int unit, const int programId, const std::string& n
     else if (unit == 6) {
         glBindTexture(GL_TEXTURE_2D, textureID4);
     }
-    
+
     //CHECKERROR;
     int loc = glGetUniformLocation(programId, name.c_str());
     glUniform1i(loc, unit);
 }
 
+void FBO::BindFBO() { 
+    glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fboID); 
+}
+
+void FBO::UnbindFBO() { 
+    glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0); 
+}
+
+void FBO::BindTexture(const int unit, const int programId, const std::string& name)
+{//
+    glActiveTexture((gl::GLenum)((int)GL_TEXTURE0 + unit));
+    glBindTexture(GL_TEXTURE_2D, textureID);
+    int loc = glGetUniformLocation(programId, name.c_str());
+    glUniform1i(loc, unit);
+}
 
 void FBO::UnbindTexture(const int unit)
 {  
     glActiveTexture((gl::GLenum)((int)GL_TEXTURE0 + unit));
     glBindTexture(GL_TEXTURE_2D, 0);
-    //CHECKERROR;
 
 }
 
 
 
 
-/*
-void FBO::CreateSSBO(size_t lightsSize, const PointLightData& light) {
 
-    // Generate and bind SSBO
-    glGenBuffers(1, &ssboID);
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssboID);
+void FBO::BindImageTexture_CS(const int unit, const GLenum access, const GLenum format, int ShaderId, char* name)
+{//
 
-    //size_t lightsSize = pointLights.size()
-    indicesSize = textureIDs.size() * sizeof(int);
-    
-    // Allocate memory for the SSBO (e.g., to store 4 color attachment data)
-    //glBufferData(GL_SHADER_STORAGE_BUFFER, 4 * sizeof(glm::vec4), nullptr, GL_DYNAMIC_DRAW);
-    glBufferData(GL_SHADER_STORAGE_BUFFER, lightsSize * indicesSize, nullptr, GL_DYNAMIC_DRAW);
-
-    
-    glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, lightsSize, light.data());
-    glBufferSubData(GL_SHADER_STORAGE_BUFFER, lightsSize, indicesSize, textureIDs.data());
-
-    // Bind SSBO to binding point (binding point 0 in this example)
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, ssboID);
-
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // Unbind
-    CHECKERROR;
-}
-
-
-void FBO::PopulateSSBOFromTextures() {
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssboID);
-
-    // Create a vector to store texture data
-    std::vector<glm::vec4> textureData(4);
-
-    // Bind each texture and read its data
-    for (int i = 0; i < 4; ++i) {
-        glBindTexture(GL_TEXTURE_2D, textureIDs[i]); // Use your texture ID array
-        glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_FLOAT, &textureData[i]);
-    }
-
-    // Upload data to SSBO
-    glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, 4 * sizeof(glm::vec4), textureData.data());
-
-    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // Unbind SSBO
-    CHECKERROR;
-}
-
-
-void FBO::LoadTextureIDs( ) {
-    
-    textureIDs.push_back(3);
-    textureIDs.push_back(4);
-    textureIDs.push_back(5);
-    textureIDs.push_back(6);
+    glBindImageTexture(unit, textureID, 0, GL_FALSE, 0, access, format);
+    int loc = glGetUniformLocation(ShaderId, name);
+    glUniform1i(loc, unit);
 
 }
 
-*/
+
+
+
 
 

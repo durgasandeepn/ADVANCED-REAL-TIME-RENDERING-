@@ -1,66 +1,55 @@
 #version 430
 
-layout(local_size_x = 128, local_size_y = 1, local_size_z = 1) in; 
+precision highp float;
+precision highp int;
 
-//layout(std140, binding = 0) uniform blurKernal { float weights[101]; };
-uniform blurKernal { float weights[101]; };
-
-uniform int blurWidth;
+layout(local_size_x = 1024, local_size_y = 1, local_size_z = 1) in; 
 
 layout(rgba32f) readonly uniform image2D shadowMap;
 layout(rgba32f) writeonly uniform image2D blurredShadowMap;
 
-shared vec4 v[229]; //128+101 = 229
+shared vec4 SharedData[gl_WorkGroupSize.x * 2];
 
 void main() {
     
     ivec2 gpos = ivec2(gl_GlobalInvocationID.xy); 
-    if(weights[0] == 0){
-         imageStore(blurredShadowMap, gpos, vec4(1,0,0,1)); // solid red
-         return;
-    }
 
-    //ivec2 gpos = ivec2(gl_GlobalInvocationID.xy); 
-    uint Ipos = gl_LocalInvocationID.x;
-
-    v[Ipos] = imageLoad(shadowMap, gpos + ivec2(-blurWidth,0));
-    if(Ipos < (2 * blurWidth + 1)){
-        v[Ipos + 128] = imageLoad(shadowMap, gpos + ivec2(128 - blurWidth,0));
-    }
-
-    barrier();
-
-    vec4 result = vec4(0.0);
-    //float weights[5] = float[5](0.06136, 0.24477, 0.38774, 0.24477, 0.06136);
-
-    for (int i = -blurWidth; i <= blurWidth; i++) {
-        vec4 Sample_ = imageLoad(shadowMap, gpos + ivec2(i, 0));
-        result += Sample_ * weights[i + blurWidth];
-    }
-
-    imageStore(blurredShadowMap, gpos, result);
+    uint id = gl_LocalInvocationID.x;
+    uint rd_id;
+    uint wr_id;
+    uint mask;
+    ivec2 P0 = ivec2(id * 2, gl_WorkGroupID.x);
+    ivec2 P1 = ivec2(id * 2 + 1, gl_WorkGroupID.x);
     
+	const uint steps = uint(log2(gl_WorkGroupSize.x)) + 1;
+	uint step = 0;
+
+
+	vec4 i0 = imageLoad(shadowMap, P0);
+	vec4 i1 = imageLoad(shadowMap, P1);
+
+	SharedData[P0.x] = i0.rgba;
+	SharedData[P1.x] = i1.rgba;
+
+	barrier();
+
+	for (step = 0; step < steps; step++)
+	{
+		mask = (1 << step) - 1;
+		rd_id = ((id >> step) << (step + 1)) + mask;
+		wr_id = rd_id + 1 + (id & mask);
+
+		SharedData[wr_id] += SharedData[rd_id];
+
+		barrier();
+		memoryBarrierShared();
+	}
+
+	imageStore(blurredShadowMap, P0.yx, SharedData[P0.x]);
+	imageStore(blurredShadowMap, P1.yx, SharedData[P1.x]);
     
-    /*
-    // Debug worked
-    vec4 shadowData = imageLoad(shadowMap, texCoord);
-    imageStore(blurredShadowMap, texCoord, vec4(1,0,0,1)); // solid red
-    */
-    /*
-    int kernelSize = 2;
-
-    vec4 result = vec4(0.0);
-    float weights[5] = float[5](0.06136, 0.24477, 0.38774, 0.24477, 0.06136);
-
-    for (int i = -kernelSize; i <= kernelSize; i++) {
-        vec4 Sample_ = imageLoad(shadowMap, gpos + ivec2(i, 0));
-        result += Sample_ * weights[i + kernelSize];
-    }
-
-    imageStore(blurredShadowMap, gpos, result);
-    //imageStore(blurredShadowMap, texCoord, vec4(1.0, 0.0, 0.0, 1.0)); // Debug: Force red pixels
-    */
 }
+
 
 
 

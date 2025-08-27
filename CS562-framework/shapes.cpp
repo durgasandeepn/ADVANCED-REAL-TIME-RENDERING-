@@ -127,7 +127,7 @@ void Shape::DrawVAO()
     glBindVertexArray(vaoID);
     //CHECKERROR;
     glDrawElements(GL_TRIANGLES, 3*count, GL_UNSIGNED_INT, 0);
-    //CHECKERROR;
+   // CHECKERROR;
     glBindVertexArray(0);
 }
 
@@ -453,40 +453,6 @@ Sphere::Sphere(const int n)
                                       (i  )*(n+1) + (j),
                                       (i  )*(n+1) + (j-1)); } } }
     MakeVAO();
-}
-
-// Generates a sphere of radius 1.0 centered at the origin.
-//   n specifies the number of polygonal subdivisions
-//   r is for the radius
-Sphere::Sphere(const int n, const float radius) {
-
-    diffuseColor = glm::vec3(0.5, 0.5, 1.0);
-    specularColor = glm::vec3(1.0, 1.0, 1.0);
-    shininess = 120.0;
-
-    float d = 2.0f * PI / float(n * 2);
-    for (int i = 0; i <= n * 2; i++) {
-        float s = i * 2.0f * PI / float(n * 2);
-        for (int j = 0; j <= n; j++) {
-            float t = j * PI / float(n);
-            float x = radius * cos(s) * sin(t);
-            float y = radius * sin(s) * sin(t);
-            float z = radius * cos(t);
-            Pnt.push_back(glm::vec4(x, y, z, 1.0f));
-            Nrm.push_back(glm::vec3(x, y, z));
-            Tex.push_back(glm::vec2(s / (2 * PI), t / PI));
-            Tan.push_back(glm::vec3(-sin(s), cos(s), 0.0));
-            if (i > 0 && j > 0) {
-                pushquad(Tri, (i - 1) * (n + 1) + (j - 1),
-                    (i - 1) * (n + 1) + (j),
-                    (i) * (n + 1) + (j),
-                    (i) * (n + 1) + (j - 1));
-            }
-        }
-    }
-    MakeVAO();
-
-
 }
 
 ////////////////////////////////////////////////////////////////////////

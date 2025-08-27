@@ -6,25 +6,22 @@
 #include <glbinding/Binding.h>
 using namespace gl;
 
-Project2::Project2( ) {
 
-}
-
-Project2::Project2(int BpValue) : weights(101, 0.0f){
+Project2::Project2() : weights(101, 0.0f){
 
     Flag = false;
-    bindpoint = BpValue;
-    
-    blurWidth = 10;
+
+    bindpoint = 0;
+   
 }
 
 
-void Project2::CreateUniformBuffer( ) {
+void Project2::CreateUniformBuffer() {
 
     Flag = true;
     glGenBuffers(1, &bufferId);
 
-    UpdateWeights( );
+    UpdateWeights();
 
     //
     //glBindBuffer(GL_UNIFORM_BUFFER, blockID)
@@ -35,7 +32,7 @@ void Project2::CreateUniformBuffer( ) {
 
 //
 //change the logic
-void Project2::UpdateWeights( ) {
+void Project2::UpdateWeights() {
     
     int ReqWidth = (2 * blurWidth) + 1;// 2*1 + 1 => 3
     double s = blurWidth / 2.0;
@@ -60,7 +57,8 @@ void Project2::UpdateWeights( ) {
     //for (int i = 0; i < (2 * (blurWidth)+1); i++) {
     //    std::cout << weights[i] << std::endl;
     //}
-  
+
+
     if (Flag == true) {
 
         glBindBuffer(GL_UNIFORM_BUFFER, bufferId);
@@ -76,7 +74,7 @@ void Project2::IncrementKernal( ) {
     UpdateWeights();
 }
 
-void Project2::DecrementKernal( ) {
+void Project2::DecrementKernal() {
     blurWidth--;
     UpdateWeights();
 }

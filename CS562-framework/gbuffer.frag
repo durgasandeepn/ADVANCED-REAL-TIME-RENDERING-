@@ -41,10 +41,10 @@ uniform int objectId;
 uniform vec3 diffuse;
 
 uniform vec3 specular;
-uniform float shininess;
+uniform float shininess; 
 
-uniform vec3 Light;
-uniform vec3 Ambient;
+uniform vec3 Light;    
+uniform vec3 Ambient; 
 
 const float Pi = 3.14159265;
 
@@ -68,13 +68,13 @@ void main()
 {
 
 	vec3 N = normalize(normalVec);
-    vec3 L = normalize(lightVec);
+    //vec3 L = normalize(lightVec);
 	vec3 V = normalize(eyeVec);
 
 	
-	vec3 H = normalize(L+V);
-	float LN = max(dot(L,N),0.0);
-	float HN = max(dot(H,N),0.0);
+	//vec3 H = normalize(L+V);
+	//float LN = max(dot(L,N),0.0);
+	//float HN = max(dot(H,N),0.0);
 
     vec3 Kd = diffuse;//color
 	vec3 Ks = specular;
@@ -86,9 +86,9 @@ void main()
 	vec3 T = normalize(tanVec);
     vec3 B = normalize(cross(T,N));
 
-	H = normalize(L+V);
-	LN = max(dot(L,N),0.0);
-	HN = max(dot(H,N),0.0);
+	//H = normalize(L+V);
+	//LN = max(dot(L,N),0.0);
+	//HN = max(dot(H,N),0.0);
 	
 	if(objectId == teapotId){//ok
 		//texture
@@ -217,22 +217,13 @@ void main()
 		//FragColor = color;
 	}
 
-	//
 	//Tested working
-	FragData[0].xyz = worldPos;//vec3(1,0,0);//R
-	FragData[0].a = length(eyeVec - worldPos);//vec3(1,0,0);//R
-	//FragData[0] = vec4(worldPos, 1.0);//vec3(1,0,0);//R
-	FragData[1] = vec4(N,1.0);//vec3(0,1,0);//G
-	FragData[2] = vec4(Kd,1.0);//vec3(1,1,0);//B
+	FragData[0] = vec4(worldPos,1);//vec3(1,0,0);//R
+	FragData[1] = vec4(N,1);//vec3(0,1,0);//G
+	FragData[2] = vec4(Kd,1);//vec3(1,1,0);//B
 	FragData[3] = vec4(Ks, Alpha);//vec3(0,0,1);
 
 }
-
-
-
-
-
-
 
 
 
