@@ -1,2 +1,2 @@
-# Adv.RealTimeRendering
- COMPUTER GRAPHICS  REAL TIME RENDERING
+# PROJECT_4_CG
+Graphics_Project4_CS562

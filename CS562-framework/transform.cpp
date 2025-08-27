@@ -92,11 +92,13 @@ glm::mat4 Perspective(const float rx, const float ry,
 }
 
 
-
 //
 //re-defined it  
 glm::mat4 LookAt(const glm::vec3 Eye, const glm::vec3 Center, const glm::vec3 Up)
 {
+
+    return glm::lookAt(Eye, Center, Up);
+
     //Camera Forward
     glm::vec3 V = glm::normalize(Center - Eye);
     //Right Vector

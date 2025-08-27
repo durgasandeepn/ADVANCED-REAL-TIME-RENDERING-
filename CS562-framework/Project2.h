@@ -14,7 +14,7 @@ class Project2
 {
 public:
 	GLuint bufferId;
-	int bindpoint;
+	int bindpoint, bindpointAO;
 	int Size = 101;
 	// Kernel size variables
 	int blurWidth = 2; // Initial half-width of the kernel
@@ -25,11 +25,12 @@ public:
 	bool Flag;
 
 	Project2();
-	void CreateUniformBuffer();
-	void UpdateWeights();
+	Project2(int BpValue);
+	void CreateUniformBuffer( );
+	void UpdateWeights( );
 
-	void IncrementKernal();
-	void DecrementKernal();
+	void IncrementKernal( );
+	void DecrementKernal( );
 	int  KernalValue();
 
 };

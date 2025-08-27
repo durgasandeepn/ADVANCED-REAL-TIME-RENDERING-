@@ -1,7 +1,7 @@
 #version 430
 
 layout(local_size_x = 128, local_size_y = 1, local_size_z = 1) in; 
- 
+
 //layout(std140, binding = 0) uniform blurKernal { float weights[101]; };
 uniform blurKernal { float weights[101]; };
 
@@ -24,8 +24,8 @@ void main() {
     uint Ipos = gl_LocalInvocationID.x;
 
     v[Ipos] = imageLoad(shadowMap, gpos + ivec2(-blurWidth,0));
-    if(Ipos < (2 * blurWidth)){
-        v[Ipos + 128] = imageLoad(shadowMap, gpos + ivec2(2 * blurWidth,0));
+    if(Ipos < (2 * blurWidth + 1)){
+        v[Ipos + 128] = imageLoad(shadowMap, gpos + ivec2(128 - blurWidth,0));
     }
 
     barrier();

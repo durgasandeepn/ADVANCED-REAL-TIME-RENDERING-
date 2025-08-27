@@ -11,10 +11,22 @@ class ShaderProgram
 {
 public:
     int programId;
-    
-    ShaderProgram();
+    GLuint BlurSMTextureId, FinalSMTextureId, AOHorzTexture_Id, AOFinalTexture_Id;
+
+
+    ShaderProgram();//constructor
     void AddShader(const char* fileName, const GLenum type);
     void LinkProgram();
     void UseShader();
     void UnuseShader();
+
+
+    ShaderProgram(int i);//constructor
+    void LinkProgram_Compute(int PrgId);
+    void UseShader_CS(int i);
+
+    //void CreateTexture(int Width, int Height, unsigned int TextureId);
+    void BindImageTexture(int unit, unsigned int Textureid, const GLenum access, int ShaderId, char* name);
+    void BindTexture(const int unit, const int programId, const std::string& name);
+    void DispatchComputerShader(int Width, int Height, int group_x, int group_y);
 };

@@ -41,10 +41,10 @@ uniform int objectId;
 uniform vec3 diffuse;
 
 uniform vec3 specular;
-uniform float shininess; 
+uniform float shininess;
 
-uniform vec3 Light;    
-uniform vec3 Ambient; 
+uniform vec3 Light;
+uniform vec3 Ambient;
 
 const float Pi = 3.14159265;
 
@@ -217,14 +217,22 @@ void main()
 		//FragColor = color;
 	}
 
+	//
 	//Tested working
 	FragData[0].xyz = worldPos;//vec3(1,0,0);//R
+	FragData[0].a = length(eyeVec - worldPos);//vec3(1,0,0);//R
 	//FragData[0] = vec4(worldPos, 1.0);//vec3(1,0,0);//R
-	FragData[1].xyz = N;//vec3(0,1,0);//G
-	FragData[2].xyz = Kd;//vec3(1,1,0);//B
+	FragData[1] = vec4(N,1.0);//vec3(0,1,0);//G
+	FragData[2] = vec4(Kd,1.0);//vec3(1,1,0);//B
 	FragData[3] = vec4(Ks, Alpha);//vec3(0,0,1);
 
 }
+
+
+
+
+
+
 
 
 

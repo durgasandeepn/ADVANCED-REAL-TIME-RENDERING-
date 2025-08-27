@@ -1,0 +1,86 @@
+#version 430
+
+layout(local_size_x = 128, local_size_y = 1, local_size_z = 1) in; 
+
+layout(binding = 1) uniform blurKernal { float weights[101]; };
+//uniform blurKernal { float weights[101]; };
+uniform int blurWidth;
+
+layout(rgba32f) readonly uniform image2D AOMap;
+layout(rgba32f) writeonly uniform image2D AOBlurH;
+layout(rgba32f) uniform image2D WorldPosMap;
+//layout(rgba32f) uniform image2D WorldPosMap;//for testing
+layout(rgba32f) uniform image2D NMap;
+
+shared vec4 v[229]; //128+101 = 229
+shared vec4 Ni[229]; //128+101 = 229
+shared float di[229]; //128+101 = 229
+
+void main() {
+    
+    ivec2 gpos = ivec2(gl_GlobalInvocationID.xy);
+    
+    /*
+    if(weights[0] == 0){//For testing if the data is loaded
+         imageStore(AOBlurH, gpos, vec4(1,0,0,1)); // solid red
+         return;
+    }
+    */
+
+    uint Ipos = gl_LocalInvocationID.x;
+
+    v[Ipos] = imageLoad(AOMap, gpos + ivec2(-blurWidth,0));
+    Ni[Ipos] = imageLoad(NMap, gpos + ivec2(-blurWidth, 0));
+    di[Ipos] = imageLoad(WorldPosMap, gpos + ivec2(-blurWidth, 0)).a;
+
+    if(Ipos < (2 * blurWidth + 1)){
+    
+        v[Ipos + 128] = imageLoad(AOMap, gpos + ivec2(128 - blurWidth, 0));
+        Ni[Ipos + 128] = imageLoad(NMap, gpos + ivec2(128 - blurWidth, 0));
+        di[Ipos + 128] = imageLoad(WorldPosMap, gpos + ivec2(128 - blurWidth, 0)).a;
+    
+    }
+
+    barrier();
+
+    float S = 0.0f;
+    float pi = 3.14f;
+    float R = 0.0f;
+    vec4 W = vec4(0.0);
+    vec4 Only_W = vec4(0.0);
+    vec4 N = imageLoad(NMap, gpos);
+    float d = imageLoad(WorldPosMap,gpos).a;
+    vec4 Ix = vec4(0.0);//imageLoad(AOMap, gpos);//Input Pixel
+    float s = 0.01f;
+
+    for (int i = -blurWidth; i <= blurWidth; i++) {
+        
+        Ix =  v[ Ipos + i + blurWidth ];
+        
+        S = weights[i + blurWidth];
+        
+        R = max(0.0, dot(Ni[Ipos + i + blurWidth], N)) * (1.0/sqrt(2.0 * pi * s)) * 
+             exp(-1.0 * (pow( (di[Ipos + i + blurWidth] - d) , 2) / (2.0 * s) ));
+
+        W += R * S * Ix;
+        Only_W += R * S;
+       
+    }
+
+
+    vec4 Output = ( W / Only_W);
+    imageStore(AOBlurH, gpos, Output);
+    
+    /*
+    //ivec2 gpos = ivec2(gl_GlobalInvocationID.xy);
+    vec4 shadowData = imageLoad(AOMap, gpos);
+    imageStore(AOBlurH, gpos, vec4(0,0,1,1));
+    */
+
+}
+
+
+
+
+
+

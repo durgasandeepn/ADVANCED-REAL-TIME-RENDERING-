@@ -8,9 +8,11 @@
 class HDRTexture : public Texture
 {
 public:
-    
+    float* data;
+    int width, height, channels;
     HDRTexture(const std::string& filename);
-
+    HDRTexture( );
+    void HDR_ReadAsPixel(const std::string& filename);
 };
 
 

@@ -51,6 +51,36 @@ HDRTexture::HDRTexture(const std::string& path)
 }
 
 
+HDRTexture::HDRTexture() {
+
+        
+}
+
+void HDRTexture::HDR_ReadAsPixel(const std::string& filename) {
+
+    data = stbi_loadf(filename.c_str(), &width, &height, &channels, STBI_default);
+
+    if (data == NULL) {
+        fprintf(stderr, "Failed to load HDR image\n");
+    }
+    else {
+        printf("Loaded HDR image: %dx%d with %d channels\n", width, height, channels);
+        // You can now use 'data' as float RGB values
+    }
+
+    // Free memory after use
+    //stbi_image_free(data);
+}
+
+
+
+
+
+
+
+
+
+
 
 
 

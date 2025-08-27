@@ -23,8 +23,8 @@ void main() {
     uint Ipos = gl_LocalInvocationID.y;
 
     v[Ipos] = imageLoad(blurredShadowMap, gpos + ivec2(0,-blurWidth));
-    if(Ipos < (2 * blurWidth)){
-        v[Ipos + 128] = imageLoad(blurredShadowMap, gpos + ivec2(0,2 * blurWidth));
+    if(Ipos < (2 * blurWidth + 1)){
+        v[Ipos + 128] = imageLoad(blurredShadowMap, gpos + ivec2(0,128 - blurWidth));
     }
 
     barrier();

@@ -11,3 +11,11 @@
 .vs/framework/v17/Browse.VC.db
 *.ipch
 .vs/framework/v17/Browse.VC.opendb
+Debug/CreateTextue.obj
+Debug/CreateTextue.obj
+Debug/emulator.obj
+Debug/fbo.obj
+Debug/framework.obj
+Debug/scene.obj
+Debug/shader.obj
+Debug/rply.obj
