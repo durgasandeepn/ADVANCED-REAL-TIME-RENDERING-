@@ -1,0 +1,21 @@
+#version 450
+
+layout(local_size_x = 16, local_size_y = 16) in; 
+
+layout(binding = 0, rgba32f) uniform image2D blurredShadowMap;
+layout(binding = 1, rgba32f) uniform image2D finalShadowMap;
+
+void main() {
+    ivec2 texCoord = ivec2(gl_GlobalInvocationID.xy);
+    int kernelSize = 2;
+
+    vec4 result = vec4(0.0);
+    float weights[5] = float[5](0.06136, 0.24477, 0.38774, 0.24477, 0.06136);
+
+    for (int i = -kernelSize; i <= kernelSize; i++) {
+        vec4 Sample = imageLoad(blurredShadowMap, texCoord + ivec2(0, i));
+        result += Sample * weights[i + kernelSize];
+    }
+
+    imageStore(finalShadowMap, texCoord, result);
+}

@@ -1,0 +1,23 @@
+#version 450
+
+layout(local_size_x = 16, local_size_y = 16) in; 
+
+layout(binding = 0) uniform sampler2D shadowMap;
+layout(binding = 1, rgba32f) uniform image2D blurredShadowMap;
+
+void main() {
+    ivec2 texCoord = ivec2(gl_GlobalInvocationID.xy); 
+    int kernelSize = 2; 
+
+    vec4 result = vec4(0.0);
+    float weights[5] = float[5](0.06136, 0.24477, 0.38774, 0.24477, 0.06136);
+
+    for (int i = -kernelSize; i <= kernelSize; i++) {
+        vec4 Sample_ = texelFetch(shadowMap, texCoord + ivec2(i, 0), 0);
+        result += Sample_ * weights[i + kernelSize];
+    }
+
+    imageStore(blurredShadowMap, texCoord, result);
+}
+
+

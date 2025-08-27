@@ -15,7 +15,6 @@ bool shifted = false;
 bool leftDown = false;
 bool middleDown = false;
 bool rightDown = false;
-bool control = false;
 
 ////////////////////////////////////////////////////////////////////////
 // Function called to exit
@@ -38,11 +37,50 @@ void Keyboard(GLFWwindow* window, int key, int scancode, int action, int mods)
     printf("Keyboard %c(%d);  S%d %s M%d\n", key, key, scancode, ACTION[action].c_str(), mods);
     fflush(stdout);
     
+    if (key == GLFW_KEY_TAB && action == GLFW_PRESS) {
+
+        if (scene.transformation_mode == false) {
+            scene.transformation_mode = true;
+        }
+        else if (scene.transformation_mode == true) {
+            scene.transformation_mode = false;
+        }
+    }
+
+
+    if (key == GLFW_KEY_W && action == GLFW_PRESS) {
+        scene.w_down = true;
+
+    }else if (key == GLFW_KEY_S && action == GLFW_PRESS) {
+        scene.s_down = true;
+
+    }else if (key == GLFW_KEY_A && action == GLFW_PRESS) {
+        scene.a_down = true;
+    }
+    else if (key == GLFW_KEY_D && action == GLFW_PRESS) {
+        scene.d_down = true;
+    }
+
+    if (key == GLFW_KEY_W && action == GLFW_RELEASE) {
+        scene.w_down = false;
+
+    }
+    else if (key == GLFW_KEY_S && action == GLFW_RELEASE) {
+        scene.s_down = false;
+
+    }
+    else if (key == GLFW_KEY_A && action == GLFW_RELEASE) {
+        scene.a_down = false;
+    }
+    else if (key == GLFW_KEY_D && action == GLFW_RELEASE) {
+        scene.d_down = false;
+    }
+
+
+
     // Track SHIFT/NO-SHIFT transitions. (The mods parameter should do this, but doesn't.)
     if (key==GLFW_KEY_LEFT_SHIFT || key==GLFW_KEY_RIGHT_SHIFT)
         shifted = !shifted;
-    if (key==GLFW_KEY_LEFT_CONTROL || key==GLFW_KEY_RIGHT_CONTROL)
-        control = !control;
   
     // @@ Catch any key DOWN-transition you'd like in the following
     // switch statement.  Record any change of state in variables in
@@ -51,14 +89,6 @@ void Keyboard(GLFWwindow* window, int key, int scancode, int action, int mods)
     if  (action == GLFW_PRESS) {
         switch(key) {
 
-        case GLFW_KEY_TAB:
-            scene.nav = !scene.nav;
-            break;
-        
-        case GLFW_KEY_W: scene.w_down = true; break;
-        case GLFW_KEY_S: scene.s_down = true; break;
-        case GLFW_KEY_A: scene.a_down = true; break;
-        case GLFW_KEY_D: scene.d_down = true; break;
 
         case GLFW_KEY_0: case GLFW_KEY_1: case GLFW_KEY_2: case GLFW_KEY_3: case GLFW_KEY_4:
         case GLFW_KEY_5: case GLFW_KEY_6: case GLFW_KEY_7: case GLFW_KEY_8: case GLFW_KEY_9:
@@ -69,11 +99,6 @@ void Keyboard(GLFWwindow* window, int key, int scancode, int action, int mods)
         
     else if (action == GLFW_RELEASE) {
 
-        switch(key) {
-        case GLFW_KEY_W: scene.w_down = false; break;
-        case GLFW_KEY_S: scene.s_down = false; break;
-        case GLFW_KEY_A: scene.a_down = false; break;
-        case GLFW_KEY_D: scene.d_down = false; break; }
     }
     
     // @@ Catch any key UP-transitions you want here.  Record any
@@ -131,16 +156,44 @@ void MouseMotion(GLFWwindow* window, double x, double y)
         scene.lightTilt -= dy/3.0; }
 
     else if (leftDown) {
-        // Rotate eye position
-        scene.spin += dx/3.0;
-        scene.tilt += dy/3.0; 
+
+        if (dx != 0 || dy != 0) {
+            scene.spin += dx / 3.0;
+            scene.tilt += dy / 3.0;
+        }
+
     }
 
     if (middleDown) { }
 
     if (rightDown) {
-        scene.tr[0] += dx/40.0f;
-        scene.tr[1] -= dy/40.0f; 
+        
+        float x1 = 0, y1 = 0;
+        if (dx != 0 || dy != 0) {
+
+            if (dx > 0) { 
+                x1 = 1; 
+            }else if(dx < 0){ 
+                x1 = -1;   
+            }else {
+                x1 = 0;
+            }
+            
+            if (dy > 0) { 
+                y1 = -1; 
+            }else if (dy < 0) {
+                y1 = 1;   
+            }
+            else {
+                y1 = 0;
+            }
+
+            scene.tx += x1/5;
+            scene.ty += y1/ 5;
+        }
+        
+        //printf("%d %d %f %f  %d\n", dy, dx, scene.tx, scene.ty, (float)n/5 );
+
     }
 
     // Record this position
@@ -164,18 +217,13 @@ void Scroll(GLFWwindow* window, double x, double y)
     else if (y<0.0 && shifted) { // Scroll light out
         scene.lightDist = pow(scene.lightDist, 1.02f); }
 
-    else if (control) { // Scroll light out
-        float a = y<0.0 ? 1.03 : 1.0/1.03;
-        scene.ry /= a;
-        scene.tr[2] *= a;
-        printf("ry: %f\n", scene.ry); }
         
     else if (y>0.0) {
-        scene.tr[2] = pow(scene.tr[2], 1.0f/1.02f);
+        scene.zoom += 1.0;
     }
 
     else if (y<0.0) {
-        scene.tr[2] = pow(scene.tr[2], 1.02f);
+        scene.zoom -= 1.0;
     }
 }
 

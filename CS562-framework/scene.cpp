@@ -13,9 +13,13 @@
 // others are set by the framework in response to user mouse/keyboard
 // interactions.  All of them can be used to draw the scene.
 
+
 #include "math.h"
 #include <iostream>
 #include <stdlib.h>
+
+#include <cmath>
+#include <random>
 
 #include <glbinding/gl/gl.h>
 #include <glbinding/Binding.h>
@@ -98,7 +102,7 @@ Object* SphereOfSpheres(Shape* SpherePolygons)
 ////////////////////////////////////////////////////////////////////////
 // Constructs a -1...+1  quad (canvas) framed by four (elongated) boxes
 Object* FramedPicture(const glm::mat4& modelTr, const int objectId, 
-                      Shape* BoxPolygons, Shape* QuadPolygons)
+                      Shape* BoxPolygons, Shape* QuadPolygons, Texture* _texture)
 {
     // This draws the frame as four (elongated) boxes of size +-1.0
     float w = 0.05;             // Width of frame boards.
@@ -115,7 +119,7 @@ Object* FramedPicture(const glm::mat4& modelTr, const int objectId,
     frame->add(ob, Translate(-1.0-w, 0.0, 0.0)*Scale(w, w, 1.0+2*w));
 
     ob = new Object(QuadPolygons, objectId,
-                    woodColor, glm::vec3(0.0, 0.0, 0.0), 10.0);
+                    woodColor, glm::vec3(0.0, 0.0, 0.0), 10.0,_texture);
     frame->add(ob, Rotate(0,90));
 
     return frame;
@@ -127,51 +131,135 @@ Object* FramedPicture(const glm::mat4& modelTr, const int objectId,
 // number of other parameters.
 void Scene::InitializeScene()
 {
-    glEnable(GL_DEPTH_TEST);
+    CHECKing = true;
+    //
+    //glEnable(GL_DEPTH_TEST);
     CHECKERROR;
 
+    //ShadowTesting = DepthTestTest;
+    DepthFlag = true;
+
     // @@ Initialize interactive viewing variables here. (spin, tilt, ry, front back, ...)
-    
+    spin = 0.0f;  // Spin angle
+    tilt = 30.0f; // Tilt angle
+    tx = 0.0f;    // Translation in x-axis
+    ty = 0.0f;    // Translation in y-axis
+    zoom = 25.0f; // Zoom factor 25.0f
+    rx = ry * width / height; // Recalculate rx based on aspect ratio
+    ry = 0.4f;    // Fixed vertical frustum height
+    front = 0.1f; // Front clipping plane 0.5f
+    back = 5000.0f; // Back clipping plane 5000.0f;
+    //
+    eye = glm::vec3(0, -20, 0);
+    Speed = 10;
+    w_down = false;
+    a_down = false;
+    s_down = false;
+    d_down = false;
+    transformation_mode = false;//Tab key Task2 and Task3
+    time_since_last_refresh = 0;
+    step = 0;
+    CurrentTime = 0;
+    PreviousTime = 0;
+
+    z_near = 20.0f;
+    z_far = 100.0f;
+
+    //Shadow Map Parameters
+    ShadowMap_Width = 1024;
+    ShadowMap_Height = 1024;
+    GBufferMap_Width = 1024;
+    GBufferMap_Height = 1024;
+
     // Set initial light parameters
     lightSpin = 150.0;
     lightTilt = -45.0;
     lightDist = 100.0;
     // @@ Perhaps initialize additional scene lighting values here. (lightVal, lightAmb)
-    
-    nav = false;
-    w_down = s_down = a_down = d_down = false;
-    spin = 0.0;
-    tilt = 30.0;
-    eye = glm::vec3(0.0, -20.0, 0.0);
-    speed = 300.0/30.0;
-    last_time = glfwGetTime();
-    tr = glm::vec3(0.0, 0.0, 25.0);
-
-    ry = 0.4;
-    front = 0.5;
-    back = 5000.0;
+    //
+    //LIGHT PARAMETERS
+    //
+    glm::vec3 lowSpecular(0.03);
+    //glm::vec3 lowSpecular(0.3, 0.3, 0.3);
+    //Alpha values
+    RoughSurface = 3.0f;//ground
+    PolishedSurface = 120.0f;//teapot
+    ModerateSmoothSurface = 10.0f;//podium
 
     CHECKERROR;
     objectRoot = new Object(NULL, nullId);
+    DS_Root = new Object(NULL, nullId);
+    LightSphs_Root = new Object(NULL, nullId);
+    
+
+    //This is for ShadowMap
+    Fbo = new FBO(ShadowMap_Width, ShadowMap_Height);
+    Fbo->CreateFBO(ShadowMap_Width, ShadowMap_Height);
+    //Fbo->CreateFBO_Multi(ShadowMap_Width, ShadowMap_Height);
 
     
-    // Enable OpenGL depth-testing
-    glEnable(GL_DEPTH_TEST);
+    GB_Fbos = new FBO(GBufferMap_Width, GBufferMap_Height);
+    GB_Fbos->CreateFBO_Multi(GBufferMap_Width, GBufferMap_Height);
+    
+    //
+    //COMPUTE SHADER
+    //ShaderProgram* HorizCS, VerticalCS;
+    HorizCS = new ShaderProgram( );
+    HorizCS->AddShader("Horiz.comp", GL_COMPUTE_SHADER);
+    HorizCS->LinkProgram();
+    HorizCS->CreateTexture(ShadowMap_Width, ShadowMap_Height, HorizCS->tempBlurTextureId);
+    //
+    VerticalCS = new ShaderProgram( );
+    VerticalCS->AddShader("Vertical.comp", GL_COMPUTE_SHADER);
+    VerticalCS->LinkProgram();
+    VerticalCS->CreateTexture(ShadowMap_Width, ShadowMap_Height, HorizCS->BlurredShadowMapTextureId);
+
+    //
+
+    //
+    //Shadow Pass
+    ShadowProgram = new ShaderProgram();
+    ShadowProgram->AddShader("shadow.vert", GL_VERTEX_SHADER);
+    ShadowProgram->AddShader("shadow.frag", GL_FRAGMENT_SHADER);
+    glBindAttribLocation(ShadowProgram->programId, 0, "vertex");
+    ShadowProgram->LinkProgram();
+
+    //
+    //18-03-2025 --> 25-03-2025
+    GBufferProgram = new ShaderProgram();
+    GBufferProgram->AddShader("gbuffer.vert", GL_VERTEX_SHADER);
+    GBufferProgram->AddShader("gbuffer.frag", GL_FRAGMENT_SHADER);
+    glBindAttribLocation(GBufferProgram->programId, 0, "vertex");
+    glBindAttribLocation(GBufferProgram->programId, 1, "vertexNormal");
+    glBindAttribLocation(GBufferProgram->programId, 2, "vertexTexture");
+    glBindAttribLocation(GBufferProgram->programId, 3, "vertexTangent");
+    GBufferProgram->LinkProgram();
+    //
+   
 
     // Create the lighting shader program from source code files.
     // @@ Initialize additional shaders if necessary
     lightingProgram = new ShaderProgram();
-    lightingProgram->AddShader("lightingPhong.vert", GL_VERTEX_SHADER);
-    lightingProgram->AddShader("lightingPhong.frag", GL_FRAGMENT_SHADER);
+    lightingProgram->AddShader("lighting.vert", GL_VERTEX_SHADER);
+    lightingProgram->AddShader("lighting.frag", GL_FRAGMENT_SHADER);
 
     glBindAttribLocation(lightingProgram->programId, 0, "vertex");
     glBindAttribLocation(lightingProgram->programId, 1, "vertexNormal");
     glBindAttribLocation(lightingProgram->programId, 2, "vertexTexture");
-    glBindAttribLocation(lightingProgram->programId, 3, "vertexTangent");
+    //glBindAttribLocation(lightingProgram->programId, 3, "vertexTangent");
     lightingProgram->LinkProgram();
 
-
     
+    //LocalLights Shader
+    LocalLightsProgram = new ShaderProgram();
+    LocalLightsProgram->AddShader("locallight.vert", GL_VERTEX_SHADER);
+    LocalLightsProgram->AddShader("locallight.frag", GL_FRAGMENT_SHADER);
+    glBindAttribLocation(LocalLightsProgram->programId, 0, "vertex");
+    glBindAttribLocation(LocalLightsProgram->programId, 1, "vertexNormal");
+    glBindAttribLocation(LocalLightsProgram->programId, 2, "vertexTexture");
+    glBindAttribLocation(LocalLightsProgram->programId, 3, "vertexTangent");
+    LocalLightsProgram->LinkProgram();
+
     // Create all the Polygon shapes
     proceduralground = new ProceduralGround(grndSize, 400,
                                      grndOctaves, grndFreq, grndPersistence,
@@ -185,43 +273,74 @@ void Scene::InitializeScene()
     Shape* QuadPolygons = new Quad();
     Shape* SeaPolygons = new Plane(2000.0, 50);
     Shape* GroundPolygons = proceduralground;
-
+    //
+    //FOR DEFERRED SHADING
+    Shape* ScreenQuadPolys = new Quad(10);
+    //
+    //Shape* LightSphere = new Sphere(32, 1);
+   
+    //LightSpheres.push_back(LightSphere);
+    
+    // 
     // Various colors used in the subsequent models
     glm::vec3 woodColor(87.0/255.0, 51.0/255.0, 35.0/255.0);
     glm::vec3 brickColor(134.0/255.0, 60.0/255.0, 56.0/255.0);
     glm::vec3 floorColor(6*16/255.0, 5.5*16/255.0, 3*16/255.0);
-    glm::vec3 brassColor(0.5, 0.5, 0.1);
+    glm::vec3 brassColor(0.5, 0.5, 0.1);//(0.03, 0.03, 0.03);
     glm::vec3 grassColor(62.0/255.0, 102.0/255.0, 38.0/255.0);
     glm::vec3 waterColor(0.3, 0.3, 1.0);
 
-    // Ks values in a range appropriate range for BRDF calculations. (Phong needs 10* this.)
-    glm::vec3 noSpec(0.0, 0.0, 0.0);
-    glm::vec3 brightSpec(0.03, 0.03, 0.03);
- 
+    glm::vec3 black(0.0, 0.0, 0.0);
+    glm::vec3 brightSpec(0.5, 0.5, 0.5);//0.03
+    glm::vec3 polishedSpec(0.3, 0.3, 0.3);//0.03
+    //
     // Creates all the models from which the scene is composed.  Each
     // is created with a polygon shape (possibly NULL), a
     // transformation, and the surface lighting parameters Kd, Ks, and
     // alpha.
-
+    //
     // @@ This is where you could read in all the textures and
     // associate them with the various objects being created in the
     // next dozen lines of code.
+    teapotTexture = new Texture("textures/cracks.png");
+    floorTexture = new Texture("textures/6670-diffuse.jpg");
+    podiumTexture = new Texture("textures/Brazilian_rosewood_pxr128.png");
+    groundTexture = new Texture("textures/grass.jpg");
+    roomTexture = new Texture("textures/Standard_red_pxr128.png");
+    HouseTexture = new Texture("textures/my-house-01.png");
+    //SkyTexture = new Texture("skys/sky.jpg");
+    SkyTexture = new Texture("skys/Ocean.png");
+
+
+    FloorNormalT = new Texture("textures/6670-normal.jpg");
+    PodiumNormalT = new Texture("textures/Brazilian_rosewood_pxr128_normal.png");
+    RipplesNormalT = new Texture("textures/ripples_normalmap.png");
+    BricksNormalT = new Texture("textures/Standard_red_pxr128_normal.png");
+
+
 
     // @@ To change an object's surface parameters (Kd, Ks, or alpha),
     // modify the following lines.
-    
     central    = new Object(NULL, nullId);
     anim       = new Object(NULL, nullId);
-    room       = new Object(RoomPolygons, roomId, brickColor, noSpec, 1);
-    floor      = new Object(FloorPolygons, floorId, floorColor, brightSpec, 10);
-    teapot     = new Object(TeapotPolygons, teapotId, brassColor, brightSpec, 120);
-    podium     = new Object(BoxPolygons, boxId, glm::vec3(woodColor), brightSpec, 10); 
-    sky        = new Object(SpherePolygons, skyId, noSpec, noSpec, 0);
-    ground     = new Object(GroundPolygons, groundId, grassColor, noSpec, 1);
-    sea        = new Object(SeaPolygons, seaId, waterColor, brightSpec, 120);
-    leftFrame  = FramedPicture(Identity, lPicId, BoxPolygons, QuadPolygons);
-    rightFrame = FramedPicture(Identity, rPicId, BoxPolygons, QuadPolygons); 
+    room       = new Object(RoomPolygons, roomId, brickColor, black, 1, roomTexture, BricksNormalT);//texture
+    floor = new Object(FloorPolygons, floorId, floorColor, black, RoughSurface, floorTexture, FloorNormalT);//texture
+    teapot = new Object(TeapotPolygons, teapotId, brassColor, lowSpecular, PolishedSurface, teapotTexture);//texture
+    podium = new Object(BoxPolygons, boxId, glm::vec3(woodColor), lowSpecular, ModerateSmoothSurface, podiumTexture, PodiumNormalT);//texture
+    sky        = new Object(SpherePolygons, skyId, black, black,0, SkyTexture);
+    objectRoot->add(sky, Scale(2000.0, 2000.0, 2000.0));
+    ground = new Object(GroundPolygons, groundId, grassColor, black, RoughSurface, groundTexture);//texture
+    sea        = new Object(SeaPolygons, seaId, waterColor, lowSpecular, PolishedSurface, SkyTexture, RipplesNormalT);
+    leftFrame  = FramedPicture(Identity, lPicId, BoxPolygons, QuadPolygons, NULL);//No texture
+    rightFrame = FramedPicture(Identity, rPicId, BoxPolygons, QuadPolygons,HouseTexture);//texture
     spheres    = SphereOfSpheres(SpherePolygons);
+
+    ScreenQuad = new Object(ScreenQuadPolys, ScreenQuadId);
+
+   
+
+    CHECKERROR;
+
 #ifdef REFL
     spheres->drawMe = true;
 #else
@@ -263,6 +382,35 @@ void Scene::InitializeScene()
 
     CHECKERROR;
 
+    //FOR DEFERRED SHADING 
+    if (fullPolyCount) {
+        DS_Root->add(ScreenQuad, glm::mat4(1.0));
+    }
+
+
+    CreatePointLights( );
+    CreateSSBO();//creating SSBO
+    /*
+    for (int i = 0; i < (LightSpheres.size() - 1); i++) {
+        Object* LightSphObj = new Object(LightSpheres[i], LightSph);
+        LightSphObjs.push_back(LightSphObj);
+    }
+    */
+    
+    if (fullPolyCount) {
+        glm::vec3 TempPos;
+        float TempScale;
+        for (int i = 0; i < (pointLights.size() - 1); i++) {
+            //
+            TempPos = pointLights[i].position;
+            TempScale = pointLights[i].radius/12;
+            //LightSphs_Root->add(LightSphObj, glm::mat4(1.0));
+            LightSphs_Root->add(LightSphObjs[i], Translate(TempPos.x, TempPos.y, 0) * Scale(TempScale, TempScale, TempScale));
+            //
+        }
+    }
+    
+    //
     // Options menu stuff
     show_demo_window = false;
 }
@@ -281,7 +429,7 @@ void Scene::DrawMenu()
             if (ImGui::MenuItem("Draw ground/sea", "", ground->drawMe)){ground->drawMe ^= true;
                 							sea->drawMe = ground->drawMe;}
             ImGui::EndMenu(); }
-                	
+        
         // This menu demonstrates how to provide the user a choice
         // among a set of choices.  The current choice is stored in a
         // variable named "mode" in the application, and sent to the
@@ -293,55 +441,220 @@ void Scene::DrawMenu()
             if (ImGui::MenuItem("Do nothing 2", "",		mode==2)) { mode=2; }
             ImGui::EndMenu(); }
         
-        ImGui::EndMainMenuBar(); }
+
+        ImGui::EndMainMenuBar(); }  
+    ImGui::GetIO().FontGlobalScale = 1.5f;
+    ImGui::Text("No.of Lights");
+    ImGui::SliderFloat("", &Value, 1.0f, 1000.0f, "%.0f", 1.0f);
+
+
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 
 void Scene::BuildTransforms()
 {
+    // @@ When you are ready to try interactive viewing, replace the
+    // following hard coded values for WorldProj and WorldView with
+    // transformation matrices calculated from variables such as spin,
+    // tilt, tr, ry, front, and back.
+   
+    rx = ry * ((float)width / (float)height);
+    if (transformation_mode == false) {
     
-    // Work out the eye position as the user move it with the WASD keys.
-    float now = glfwGetTime();
-    float dist = (now-last_time)*speed;
-    last_time = now;
-    if (w_down)
-        eye += dist*glm::vec3(sin(spin*rad), cos(spin*rad), 0.0);
-    if (s_down)
-        eye -= dist*glm::vec3(sin(spin*rad), cos(spin*rad), 0.0);
-    if (d_down)
-        eye += dist*glm::vec3(cos(spin*rad), -sin(spin*rad), 0.0);
-    if (a_down)
-        eye -= dist*glm::vec3(cos(spin*rad), -sin(spin*rad), 0.0);
+        WorldView = Translate(tx, ty, -zoom) * Rotate(0, tilt - 90) * Rotate(2, spin);
+        WorldProj = Perspective(rx, ry, front, back);
+    }
+    else  if (transformation_mode == true)
+    {
+        WorldView = Rotate(0,(tilt - 90)) * Rotate(2,spin) * Translate(-eye.x, -eye.y, -eye.z);
+        WorldProj = Perspective(rx,ry, front, back);
+    }
 
-    eye[2] = proceduralground->HeightAt(eye[0], eye[1]) + 2.0;
+    //
+    //
+    // LIGHT CALCULATIONS //
+    //
+    lightDir = glm::normalize(lightPos);// 0 -LightPos
+    // World up direction (standard "up" is positive Y-axis)
+    worldUp = glm::vec3(0.0f, 0.0f, 1.0f);  // World "up" direction (Y-axis)
+    // Compute the right direction (perpendicular to both lightDir and worldUp)
+    rightDir = glm::normalize(glm::cross(worldUp, lightDir));  // Right direction
+    // Compute the up direction (perpendicular to both lightDir and rightDir)
+    upDir = glm::normalize(glm::cross(lightDir, rightDir));  // Up direction
+    //
+    L_ViewMatrix = LookAt(lightPos, glm::vec3(0.0f, 0.0f, 0.0f), worldUp);
+    /*
+    std::cout << glm::to_string(L_ViewMatrix) << std::endl;
+    std::cout<<std::endl;
+    std::cout<<std::endl;
+    std::cout << glm::to_string(glm::lookAt(lightPos, glm::vec3(0.0f, 0.0f, 0.0f), worldUp)) << std::endl;
+    */
 
-    CHECKERROR;
+//  L_ViewMatrix = LookAt(lightPos, lightDir, upDir);
 
-    if (nav)
-        WorldView = Rotate(0, tilt-90)*Rotate(2, spin) *Translate(-eye[0], -eye[1], -eye[2]);
-    else
-        WorldView = Translate(tr[0], tr[1], -tr[2]) *Rotate(0, tilt-90)*Rotate(2, spin);
-    WorldProj = Perspective((ry*width)/height, ry, front, (mode==0) ? 1000 : back);
-
-
+    Rx = 40/lightDist;
+    Ry = 40/lightDist;
+    
+    L_ProjectionMatrix = Perspective(Rx, Ry, front, back/5);//back -> 5000
+    //std::cout << glm::to_string(L_ProjectionMatrix) << std::endl;
+    //
+    B = Translate(0.5, 0.5, 0.5) * Scale(0.5, 0.5, 0.5);
+    ShadowMatrix = B * L_ProjectionMatrix * L_ViewMatrix;
+    //
+    //
+      
+    //
+    //
     // @@ Print the two matrices (in column-major order) for
     // comparison with the project document.
-    //std::cout << "WorldView: " << glm::to_string(WorldView) << std::endl;
-    //std::cout << "WorldProj: " << glm::to_string(WorldProj) << std::endl;
+    /*
+    std::cout << "WorldView: " << glm::to_string(WorldView) << std::endl;
+    std::cout << "WorldProj: " << glm::to_string(WorldProj) << std::endl;
+    */
+    
 }
+
+
+void Scene::CreatePointLights() {
+
+    unsigned int i = 0;
+    unsigned int j = 0;
+
+    float  Xpos = -20.0f;
+    float Ypos = -20.0f; 
+    float temp = Ypos;
+    
+   // Xpos = 0;
+   // Ypos = 0;
+   // temp = Ypos;
+
+    //
+    //position starts from 
+    // -5 to -50
+    //
+
+    //for (i = 0; i <4; i++) {
+      // for (j = 0; j < 4; j++) {
+
+    for (i = 0; i < 40; i++) {
+       for (j = 0; j < 25; j++) {
+            
+            PointLightData LightsData;
+
+            LightsData.position = glm::vec3(Xpos, Ypos, 0);
+            LightsData.color = RandomColor( );
+            LightsData.intensity = RandomIntensity( );
+            LightsData.radius = RandomRadius( );
+            //LightsData.radius = 2;
+            
+            pointLights.push_back(LightsData);
+
+            Shape* LightSphere = new Sphere(32, LightsData.radius);
+            LightSpheres.push_back(LightSphere);//LightSpheres is vector for storing Shape
+
+            Object* LightSphObj = new Object(LightSphere, LightSph);
+            LightSphObjs.push_back(LightSphObj);
+            
+            Ypos += 1.5f;
+
+        }
+            Xpos += 1.5f;
+            Ypos = temp;
+
+    }
+    
+}
+
+
+glm::vec3 Scene::RandomColor( ) {
+
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+    static std::uniform_real_distribution<> dis(0.0f, 1.0f);
+
+    float r = dis(gen);
+    float g = dis(gen);
+    float b = dis(gen);
+
+    // Round to 1 decimal place
+    r = std::round(r * 10.0f) / 10.0f;
+    g = std::round(g * 10.0f) / 10.0f;
+    b = std::round(b * 10.0f) / 10.0f;
+
+
+    return glm::vec3(r, g, b);
+
+}
+
+
+
+glm::vec3 Scene::RandomIntensity( ) {
+
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+    static std::uniform_real_distribution<> dis(0.5f, 3.0f);
+
+    float r = dis(gen);
+    float g = dis(gen);
+    float b = dis(gen);
+
+    // Round to 2 decimal places
+    r = std::round(r * 100.0f) / 100.0f;
+    g = std::round(g * 100.0f) / 100.0f;
+    b = std::round(b * 100.0f) / 100.0f;
+
+    //std::cout << "Random Color is  " << r <<" "<<g <<" " <<b << std::endl;
+    return glm::vec3(r, g, b);
+
+}
+
+
+int Scene::RandomRadius() {
+
+    const int minRadius = 3, maxRadius = 4;
+
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+    static std::uniform_int_distribution<> dis(minRadius, maxRadius);
+
+    return dis(gen);
+}
+
 
 ////////////////////////////////////////////////////////////////////////
 // Procedure DrawScene is called whenever the scene needs to be
 // drawn. (Which is often: 30 to 60 times per second are the common
 // goals.)
+const float pi = 3.14159f;
 void Scene::DrawScene()
 {
     // Set the viewport
     glfwGetFramebufferSize(window, &width, &height);
     glViewport(0, 0, width, height);
 
-    CHECKERROR;
+    CurrentTime = glfwGetTime();
+    time_since_last_refresh = CurrentTime - PreviousTime;
+    step = Speed * time_since_last_refresh;
+
+    if (w_down == true) {
+        eye += step * glm::vec3(sin(spin * (pi / 180)), cos(spin * (pi / 180)), 0.0f);
+    }
+    if(s_down == true)
+    {
+        eye -= step * glm::vec3(sin(spin * (pi / 180)), cos(spin * (pi / 180)), 0.0f);
+    }
+    if(d_down == true)
+    {
+        eye += step * glm::vec3(cos(spin * (pi / 180)), -sin(spin * (pi / 180)), 0.0f);
+    }
+    if(a_down == true)
+    {
+        eye -= step * glm::vec3(cos(spin * (pi / 180)), -sin(spin * (pi / 180)), 0.0f);
+    }
+    
+
+    //CHECKERROR;
     // Calculate the light's position from lightSpin, lightTilt, lightDist
     lightPos = glm::vec3(lightDist*cos(lightSpin*rad)*sin(lightTilt*rad),
                          lightDist*sin(lightSpin*rad)*sin(lightTilt*rad), 
@@ -350,7 +663,11 @@ void Scene::DrawScene()
     // Update position of any continuously animating objects
     double atime = 360.0*glfwGetTime()/36;
     for (std::vector<Object*>::iterator m=animated.begin();  m<animated.end();  m++)
+
         (*m)->animTr = Rotate(2, atime);
+
+
+    eye.z = 2 + proceduralground->HeightAt(eye.x, eye.y);;
 
     BuildTransforms();
 
@@ -370,49 +687,351 @@ void Scene::DrawScene()
     //   Unset the shader
     ////////////////////////////////////////////////////////////////////////////////
 
-    CHECKERROR;
-    int loc, programId;
+    //CHECKERROR;
+    int loc, programId, ShadowPrgId, GBufferPrgId, LocalLightsPrgId, HorzPrjId, VerticalPrjId;
 
     ////////////////////////////////////////////////////////////////////////////////
-    // Lighting pass
+    // G-Buffer pass - STARTING
     ////////////////////////////////////////////////////////////////////////////////
-    
-    // Choose the lighting shader
-    lightingProgram->UseShader();
-    programId = lightingProgram->programId;
+    glEnable(GL_DEPTH_TEST);
 
-    // Set the viewport, and clear the screen
-    glViewport(0, 0, width, height);
-    glClearColor(0.5, 0.5, 0.5, 1.0);
-    glClear(GL_COLOR_BUFFER_BIT| GL_DEPTH_BUFFER_BIT);
-
-
-    // @@ The scene specific parameters (uniform variables) used by
-    // the shader are set here.  Object specific parameters are set in
-    // the Draw procedure in object.cpp
-    
-    loc = glGetUniformLocation(programId, "WorldProj");
+    GB_Fbos->BindFBO();
+    //
+    glViewport(0, 0, GBufferMap_Width, GBufferMap_Height);
+    glClearColor(0.0, 0.0, 0.0, 0.0);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    //
+    GBufferProgram->UseShader( );
+    GBufferPrgId = GBufferProgram->programId;
+    //
+    loc = glGetUniformLocation(GBufferPrgId, "WorldProj");
     glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(WorldProj));
-    loc = glGetUniformLocation(programId, "WorldView");
+    loc = glGetUniformLocation(GBufferPrgId, "WorldView");
     glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(WorldView));
-    loc = glGetUniformLocation(programId, "WorldInverse");
+    loc = glGetUniformLocation(GBufferPrgId, "WorldInverse");
     glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(WorldInverse));
-    loc = glGetUniformLocation(programId, "lightPos");
-    glUniform3fv(loc, 1, &(lightPos[0]));   
-    loc = glGetUniformLocation(programId, "mode");
+    loc = glGetUniformLocation(GBufferPrgId, "lightPos");
+    glUniform3fv(loc, 1, &(lightPos[0]));
+    loc = glGetUniformLocation(GBufferPrgId, "mode");
     glUniform1i(loc, mode);
-    CHECKERROR;
+    loc = glGetUniformLocation(GBufferPrgId, "Light");
+    glUniform3fv(loc, 1, &(Light[0]));
+    loc = glGetUniformLocation(GBufferPrgId, "Ambient");
+    glUniform3fv(loc, 1, &(Ambient[0]));
+    loc = glGetUniformLocation(GBufferPrgId, "ShadowMatrix");
+    glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(ShadowMatrix));
 
-    // Draw all objects (This recursively traverses the object hierarchy.)
-    CHECKERROR;
-    objectRoot->Draw(lightingProgram, Identity);
-    CHECKERROR; 
+    objectRoot->Draw(GBufferProgram, Identity);
 
-    
-    // Turn off the shader
-    lightingProgram->UnuseShader();
+    GBufferProgram->UnuseShader();
 
+    GB_Fbos->UnbindFBO();
+    //
     ////////////////////////////////////////////////////////////////////////////////
-    // End of Lighting pass
+    // G-Buffer pass - ENDING
     ////////////////////////////////////////////////////////////////////////////////
+    //if (CHECKing == false) {
+        
+        ////////////////////////////////////////////////////////////////////////////////
+        // Shadow pass
+        ////////////////////////////////////////////////////////////////////////////////
+        //Create FBO
+        //
+        glEnable(GL_DEPTH_TEST);
+        // Set the viewport, and clear the screen 
+        Fbo->BindFBO();
+
+        //
+        glViewport(0, 0, ShadowMap_Width, ShadowMap_Height);
+        glClearColor(0.5, 0.5, 0.5, 1.0);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        //
+        //
+        // Choose the lighting shader
+        ShadowProgram->UseShader();
+        ShadowPrgId = ShadowProgram->programId;
+
+        glEnable(GL_CULL_FACE);
+        glCullFace(GL_FRONT);
+
+        glUniform1f(glGetUniformLocation(ShadowPrgId, "z0"), z_near);
+        glUniform1f(glGetUniformLocation(ShadowPrgId, "z1"), z_near);
+
+        loc = glGetUniformLocation(ShadowPrgId, "L_ViewMatrix");
+        glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(L_ViewMatrix));
+        loc = glGetUniformLocation(ShadowPrgId, "L_ProjectionMatrix");
+        glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(L_ProjectionMatrix));
+
+
+        //CHECKERROR;
+        // Draw all objects (This recursively traverses the object hierarchy.)
+        objectRoot->Draw(ShadowProgram, Identity);
+        //CHECKERROR;
+
+        glDisable(GL_CULL_FACE);
+
+        // Turn off the shader
+        ShadowProgram->UnuseShader();
+        //For the DepthTest
+        Fbo->UnbindFBO();
+        //
+        //
+        ////////////////////////////////////////////////////////////////////////////////
+        // End of Shadow pass
+        ////////////////////////////////////////////////////////////////////////////////
+
+        ////////////////////////////////////////////////////////////////////////////////
+        // Compute Shader
+        ////////////////////////////////////////////////////////////////////////////////
+        /*
+        HorizCS->UseShader();
+        HorzPrjId = HorizCS->programId;
+        Fbo->BindTexture(0, HorzPrjId, "shadowMap");//
+        HorizCS->BindImageTexture(1, HorizCS->tempBlurTextureId);
+        HorizCS->DispatchComputerShader(ShadowMap_Width, ShadowMap_Height);
+
+        VerticalCS->UseShader();
+        VerticalPrjId = VerticalCS->programId;
+        VerticalCS->BindImageTexture(0,HorizCS->tempBlurTextureId);
+        VerticalCS->BindImageTexture(1,VerticalCS->BlurredShadowMapTextureId);
+        VerticalCS->DispatchComputerShader(ShadowMap_Width, ShadowMap_Height);
+        */
+        ////////////////////////////////////////////////////////////////////////////////
+        // Compute Shader
+        ////////////////////////////////////////////////////////////////////////////////
+
+
+
+        //if (DepthFlag == true){
+
+        ////////////////////////////////////////////////////////////////////////////////
+        // Lighting pass
+        ////////////////////////////////////////////////////////////////////////////////
+        glDisable(GL_DEPTH_TEST);
+
+        // Choose the lighting shader
+        lightingProgram->UseShader();
+        programId = lightingProgram->programId;
+
+        // Set the viewport, and clear the screen
+        glViewport(0, 0, width, height);
+        glClearColor(0.5, 0.5, 0.5, 1.0);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+
+        // @@ The scene specific parameters (uniform variables) used by
+        // the shader are set here.  Object specific parameters are set in
+        // the Draw procedure in object.cpp
+
+        //
+        Fbo->BindTexture(2, programId, "shadowMap");//
+        GB_Fbos->BindTexture4(3, programId, "WorldPosMap");
+        GB_Fbos->BindTexture4(4, programId, "NMap");
+        GB_Fbos->BindTexture4(5, programId, "KdMap");
+        GB_Fbos->BindTexture4(6, programId, "KaMap");
+        //VerticalCS->BindImageTexture(7, VerticalCS->BlurredShadowMapTextureId, );//From here
+
+
+        /*
+        loc = glGetUniformLocation(programId, "WorldProj");
+        glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(WorldProj));
+        loc = glGetUniformLocation(programId, "WorldView");
+        glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(WorldView));
+        */
+
+        loc = glGetUniformLocation(programId, "WorldInverse");
+        glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(WorldInverse));
+        loc = glGetUniformLocation(programId, "lightPos1");
+        glUniform3fv(loc, 1, &(lightPos[0]));
+        loc = glGetUniformLocation(programId, "mode");//not using
+        glUniform1i(loc, mode);
+        loc = glGetUniformLocation(programId, "Light");//light position
+        glUniform3fv(loc, 1, &(Light[0]));
+        loc = glGetUniformLocation(programId, "Ambient");//
+        glUniform3fv(loc, 1, &(Ambient[0]));
+        loc = glGetUniformLocation(programId, "ShadowMatrix");
+        glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(ShadowMatrix));
+        
+
+        /*
+        glActiveTexture(GL_TEXTURE2); // Activate texture unit 2
+        glBindTexture(GL_TEXTURE_2D, Fbo->GetShadowMapTexture()); // Load texture into it
+        loc = glGetUniformLocation(programId, "shadowMap");
+        glUniform1i(loc, 2);
+        */
+
+        //CHECKERROR;
+        // Draw all objects (This recursively traverses the object hierarchy.)
+        //objectRoot->Draw(lightingProgram, Identity);
+        DS_Root->Draw(lightingProgram, Identity);
+
+        Fbo->UnbindTexture(2);
+        //GB_Fbos->UnbindTexture(3);
+        //GB_Fbos->UnbindTexture(4);
+        //GB_Fbos->UnbindTexture(5);
+        //GB_Fbos->UnbindTexture(6);
+        //
+        //Fbo->UnbindFBO();
+
+        // Turn off the shader
+        lightingProgram->UnuseShader();
+        ////////////////////////////////////////////////////////////////////////////////
+        // End of Lighting pass
+        ////////////////////////////////////////////////////////////////////////////////
+    //}
+
+        //
+        ////////////////////////////////////////////////////////////////////////////////
+        // Start of Local lights pass
+        ////////////////////////////////////////////////////////////////////////////////
+        //
+        glDisable(GL_DEPTH_TEST);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_ONE, GL_ONE);
+        //
+        glEnable(GL_CULL_FACE);
+        //glCullFace(GL_BACK);
+        glCullFace(GL_FRONT);
+
+        LocalLightsProgram->UseShader();
+        LocalLightsPrgId = LocalLightsProgram->programId;
+        
+        /*
+        glViewport(0, 0, width, height);
+        glClearColor(0.5, 0.5, 0.5, 1.0);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        */
+        //
+        GB_Fbos->BindTexture4(3, LocalLightsPrgId, "WorldPosMap");
+        GB_Fbos->BindTexture4(4, LocalLightsPrgId, "NMap");
+        GB_Fbos->BindTexture4(5, LocalLightsPrgId, "KdMap");
+        GB_Fbos->BindTexture4(6, LocalLightsPrgId, "KaMap");
+        //
+        loc = glGetUniformLocation(LocalLightsPrgId, "WorldProj");
+        glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(WorldProj));
+        loc = glGetUniformLocation(LocalLightsPrgId, "WorldView");
+        glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(WorldView));
+        loc = glGetUniformLocation(LocalLightsPrgId, "WorldInverse");
+        glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(WorldInverse));
+        //
+        // 
+        //loc = glGetUniformLocation(LocalLightsPrgId, "Light");
+        //glUniform3fv(loc, 1, &(Light[0]));
+        //loc = glGetUniformLocation(LocalLightsPrgId, "Ambient");
+        //glUniform3fv(loc, 1, &(Ambient[0]));
+        
+        loc = glGetUniformLocation(programId, "Ambient");//
+        glUniform3fv(loc, 1, &(Ambient[0]));
+        //
+
+        for (int i = 0; i < pointLights.size(); i++) {
+
+            glUniform1i(glGetUniformLocation(LocalLightsPrgId, "lightIndex"), i);
+
+            LightSphs_Root->Draw(LocalLightsProgram, Identity,i);
+
+        }
+
+
+        glDisable(GL_BLEND);
+        glDisable(GL_CULL_FACE);
+        
+        LocalLightsProgram->UseShader();
+
+        //
+        ////////////////////////////////////////////////////////////////////////////////
+        // End of Local lights pass
+        ////////////////////////////////////////////////////////////////////////////////
+        //
+
+    //}//CHECKing
+    PreviousTime = glfwGetTime();
 }
+
+
+
+void Scene::PrjWid2025() {
+
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        // Create a window for the sidebar
+        ImGui::Begin("Sidebar", NULL, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove);
+
+        // Set the width of the sidebar
+        ImGui::SetWindowSize(ImVec2(200, 0));
+
+        // Create buttons or menu items in the sidebar
+        if (ImGui::Button("Home"))
+        {
+            // Handle the Home button action
+        }
+        if (ImGui::Button("Settings"))
+        {
+            // Handle the Settings button action
+        }
+        if (ImGui::Button("About"))
+        {
+            // Handle the About button action
+        }
+
+        // You can add more buttons or elements here as needed
+
+        ImGui::End(); // End the sidebar window
+
+        // Now you can render the rest of your UI here, such as the content area
+        ImGui::Begin("Main Content");
+        ImGui::Text("This is the main content area!");
+        ImGui::End();
+
+        ImGui::EndFrame();
+}
+
+
+//SSBO related code
+void Scene::CreateSSBO( ) {
+
+    // Generate and bind SSBO
+    glGenBuffers(1, &ssboID);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssboID);
+    
+    //size_t lightsSize = pointLights.size()
+    size_t lightsSize = pointLights.size() * sizeof(PointLightData);
+    glBufferData(GL_SHADER_STORAGE_BUFFER, lightsSize, pointLights.data(), GL_DYNAMIC_DRAW);
+
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, ssboID);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // Unbind
+    //CHECKERROR;
+}
+
+
+void Scene::PopulateSSBOFromTextures() {
+    //glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssboID);
+
+    //// Create a vector to store texture data
+    //std::vector<glm::vec4> textureData(4);
+
+    //// Bind each texture and read its data
+    //for (int i = 0; i < 4; ++i) {
+    //    glBindTexture(GL_TEXTURE_2D, textureIDs[i]); // Use your texture ID array
+    //    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_FLOAT, &textureData[i]);
+    //}
+
+    //// Upload data to SSBO
+    //glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, 4 * sizeof(glm::vec4), textureData.data());
+
+    //glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // Unbind SSBO
+    //CHECKERROR;
+}
+
+
+void Scene::LoadTextureIDs() {
+
+   /* textureIDs.push_back(3);
+    textureIDs.push_back(4);
+    textureIDs.push_back(5);
+    textureIDs.push_back(6);*/
+
+}
+

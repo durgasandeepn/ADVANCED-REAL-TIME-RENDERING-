@@ -33,11 +33,13 @@ class Object
     glm::vec3 diffuseColor;          // Diffuse color of object
     glm::vec3 specularColor;         // Specular color of object
     float shininess;            // Surface roughness value
+    Texture* texture;
+    Texture* normalTexture;
 
     std::vector<INSTANCE> instances; // Pairs of sub-objects and transformations 
 
     Object(Shape* _shape, const int objectId,
-           const glm::vec3 _d=glm::vec3(), const glm::vec3 _s=glm::vec3(), const float _n=1);
+           const glm::vec3 _d=glm::vec3(), const glm::vec3 _s=glm::vec3(), const float _n=1, Texture* _texture = NULL, Texture* normalTexture = NULL);
 
     // If this object is to be drawn with a texture, this is a good
     // place to store the texture id (a small positive integer).  The
@@ -45,6 +47,7 @@ class Object
     // Object::Draw.
     
     void Draw(ShaderProgram* program, glm::mat4& objectTr);
+    void Draw(ShaderProgram* program, glm::mat4& objectTr, int Index);
 
     void add(Object* m, glm::mat4 tr=glm::mat4(1.0)) { instances.push_back(std::make_pair(m,tr)); }
 };

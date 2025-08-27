@@ -17,8 +17,10 @@ class Texture
 {
  public:
     unsigned int textureId;
-    int width, height, depth;
+    int width, height, depth;//n is new
     unsigned char* image;
+    unsigned char* NormalImg;
+
     Texture();
     Texture(const std::string &filename);
 

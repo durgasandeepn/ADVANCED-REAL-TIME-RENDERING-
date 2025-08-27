@@ -11,10 +11,16 @@ class ShaderProgram
 {
 public:
     int programId;
-    
+    unsigned int tempBlurTextureId, BlurredShadowMapTextureId;
+
+
     ShaderProgram();
     void AddShader(const char* fileName, const GLenum type);
     void LinkProgram();
     void UseShader();
     void UnuseShader();
+
+    void CreateTexture(int Width, int Height, unsigned int TextureId);
+    void BindImageTexture( int id, unsigned int Textureid);
+    void DispatchComputerShader(int Width, int Height);
 };

@@ -13,7 +13,11 @@
 #include <glbinding/Binding.h>
 using namespace gl;
 
+#include "glu.h"
 #include "shader.h"
+
+
+
 
 // Reads a specified file into a string and returns the string.  The
 // file is examined first to determine the needed string size.
@@ -103,3 +107,45 @@ void ShaderProgram::LinkProgram()
         delete buffer;
     }
 }
+
+
+
+void ShaderProgram::CreateTexture(int Width, int Height, unsigned int TextureId) {
+
+    glGenTextures(1, &TextureId);
+    glBindTexture(GL_TEXTURE_2D, TextureId);
+    glTexImage2D(GL_TEXTURE_2D, 0, (int)GL_RGBA32F, Width, Height, 0, GL_RGBA, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, (int)GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, (int)GL_LINEAR);
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+}
+
+
+void ShaderProgram::BindImageTexture(int id, unsigned int Textureid) {
+    glBindImageTexture(1, Textureid, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+}
+
+
+void ShaderProgram::DispatchComputerShader(int Width, int Height) {
+    glDispatchCompute(Width / 16, Height / 16, 1);
+    glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+}
+
+/*
+void ShaderProgram::BindImageTexture(int id, unsigned int Textureid) {
+    glBindImageTexture(1, Textureid, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+}
+*/
+
+/*
+void ShaderProgram::BindtextureToSample( ,unsigned int textureId) {
+    // Activate texture unit for shadow map
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, blurredShadowMapTexture);
+
+    glUniform1i(glGetUniformLocation(lightingShader, "BlurredShadowMap"), 1);
+
+}
+
+*/

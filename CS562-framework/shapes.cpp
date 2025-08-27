@@ -60,6 +60,7 @@ unsigned int VaoFromTris(std::vector<glm::vec4> Pnt,
                          std::vector<glm::vec3> Tan,
                          std::vector<glm::ivec3> Tri)
 {
+    printf("VaoFromTris %ld %ld\n", Pnt.size(), Tri.size());
     unsigned int vaoID;
     glGenVertexArrays(1, &vaoID);
     glBindVertexArray(vaoID);
@@ -122,11 +123,11 @@ void Shape::MakeVAO()
 
 void Shape::DrawVAO()
 {
-    CHECKERROR;
+    //CHECKERROR;
     glBindVertexArray(vaoID);
-    CHECKERROR;
+    //CHECKERROR;
     glDrawElements(GL_TRIANGLES, 3*count, GL_UNSIGNED_INT, 0);
-    CHECKERROR;
+    //CHECKERROR;
     glBindVertexArray(0);
 }
 
@@ -381,7 +382,6 @@ Teapot::Teapot(const int n)
                              p*(n+1)*(n+1) + (i  )*(n+1) + (j),
                              p*(n+1)*(n+1) + (i  )*(n+1) + (j-1)); } } }
     MakeVAO();
-    printf("%6ld %6ld Teapot\n", Pnt.size(), Tri.size());
 }
 
 
@@ -405,7 +405,6 @@ Box::Box()
     face(glm::rotate(I,   PI, glm::vec3(1.0f, 0.0f, 0.0f)));
 
     MakeVAO();
-    printf("%6ld %6ld Box\n", Pnt.size(), Tri.size());
 }
 
 void Box::face(const glm::mat4 tr)
@@ -454,7 +453,40 @@ Sphere::Sphere(const int n)
                                       (i  )*(n+1) + (j),
                                       (i  )*(n+1) + (j-1)); } } }
     MakeVAO();
-    printf("%6ld %6ld Sphere\n", Pnt.size(), Tri.size());
+}
+
+// Generates a sphere of radius 1.0 centered at the origin.
+//   n specifies the number of polygonal subdivisions
+//   r is for the radius
+Sphere::Sphere(const int n, const float radius) {
+
+    diffuseColor = glm::vec3(0.5, 0.5, 1.0);
+    specularColor = glm::vec3(1.0, 1.0, 1.0);
+    shininess = 120.0;
+
+    float d = 2.0f * PI / float(n * 2);
+    for (int i = 0; i <= n * 2; i++) {
+        float s = i * 2.0f * PI / float(n * 2);
+        for (int j = 0; j <= n; j++) {
+            float t = j * PI / float(n);
+            float x = radius * cos(s) * sin(t);
+            float y = radius * sin(s) * sin(t);
+            float z = radius * cos(t);
+            Pnt.push_back(glm::vec4(x, y, z, 1.0f));
+            Nrm.push_back(glm::vec3(x, y, z));
+            Tex.push_back(glm::vec2(s / (2 * PI), t / PI));
+            Tan.push_back(glm::vec3(-sin(s), cos(s), 0.0));
+            if (i > 0 && j > 0) {
+                pushquad(Tri, (i - 1) * (n + 1) + (j - 1),
+                    (i - 1) * (n + 1) + (j),
+                    (i) * (n + 1) + (j),
+                    (i) * (n + 1) + (j - 1));
+            }
+        }
+    }
+    MakeVAO();
+
+
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -484,7 +516,6 @@ Disk::Disk(const int n)
         if (i>0) {
           Tri.push_back(glm::ivec3(0, i+1, i)); } }
     MakeVAO();
-    printf("%6ld %6ld Disk\n", Pnt.size(), Tri.size());
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -514,11 +545,12 @@ Cylinder::Cylinder(const int n)
                                       (i  )*(2) + (j),
                                       (i  )*(2) + (j-1)); } } }
     MakeVAO();
-    printf("%6ld %6ld Cylinder\n", Pnt.size(), Tri.size());
 }
 
 ////////////////////////////////////////////////////////////////////////
-// Reads a model's vertices and triangles from a file in the PLY format.
+// Generates a plane with normals, texture coords, and tangent vectors
+// from an n by n grid of small quads.  A single quad might have been
+// sufficient, but that works poorly with the reflection map.
 Ply::Ply(const char* name, const bool reverse)
 {
     diffuseColor = glm::vec3(0.8, 0.8, 0.5);
@@ -549,7 +581,6 @@ Ply::Ply(const char* name, const bool reverse)
     if (!ply_read(ply)) {printf("Failure in ply_read\n"); exit(-1); }
 
     MakeVAO();
-    printf("%6ld %6ld %s\n", Pnt.size(), Tri.size(), name);
 }
  
 
@@ -661,11 +692,12 @@ Plane::Plane(const float r, const int n)
                                       (i  )*(n+1) + (j-1)); } } }
 
     MakeVAO();
-    printf("%6ld %6ld Plane\n", Pnt.size(), Tri.size());
 }
 
 ////////////////////////////////////////////////////////////////////////
-// Generates a rolling-hill ground grid.
+// Generates a plane with normals, texture coords, and tangent vectors
+// from an n by n grid of small quads.  A single quad might have been
+// sufficient, but that works poorly with the reflection map.
 ProceduralGround::ProceduralGround(const float _range, const int n,
                      const float _octaves, const float _persistence, const float _scale,
                      const float _low, const float _high)
@@ -702,7 +734,6 @@ ProceduralGround::ProceduralGround(const float _range, const int n,
                          (i  )*(n+1) + (j-1)); } } }
 
     MakeVAO();
-    printf("%6ld %6ld Ground\n", Pnt.size(), Tri.size());
 }
 
 float ProceduralGround::HeightAt(const float x, const float y)
@@ -743,5 +774,4 @@ Quad::Quad(const int n)
                          (i  )*(n+1) + (j-1)); } } }
 
     MakeVAO();
-    printf("%6ld %6ld Quad\n", Pnt.size(), Tri.size());
 }
