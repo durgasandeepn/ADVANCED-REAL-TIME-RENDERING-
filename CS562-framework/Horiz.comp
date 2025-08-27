@@ -1,23 +1,66 @@
-#version 450
+#version 430
 
-layout(local_size_x = 16, local_size_y = 16) in; 
+layout(local_size_x = 128, local_size_y = 1, local_size_z = 1) in; 
+ 
+//layout(std140, binding = 0) uniform blurKernal { float weights[101]; };
+uniform blurKernal { float weights[101]; };
 
-layout(binding = 0) uniform sampler2D shadowMap;
-layout(binding = 1, rgba32f) uniform image2D blurredShadowMap;
+uniform int blurWidth;
+
+layout(rgba32f) readonly uniform image2D shadowMap;
+layout(rgba32f) writeonly uniform image2D blurredShadowMap;
+
+shared vec4 v[229]; //128+101 = 229
 
 void main() {
-    ivec2 texCoord = ivec2(gl_GlobalInvocationID.xy); 
-    int kernelSize = 2; 
+    
+    ivec2 gpos = ivec2(gl_GlobalInvocationID.xy); 
+    if(weights[0] == 0){
+         imageStore(blurredShadowMap, gpos, vec4(1,0,0,1)); // solid red
+         return;
+    }
+
+    //ivec2 gpos = ivec2(gl_GlobalInvocationID.xy); 
+    uint Ipos = gl_LocalInvocationID.x;
+
+    v[Ipos] = imageLoad(shadowMap, gpos + ivec2(-blurWidth,0));
+    if(Ipos < (2 * blurWidth)){
+        v[Ipos + 128] = imageLoad(shadowMap, gpos + ivec2(2 * blurWidth,0));
+    }
+
+    barrier();
+
+    vec4 result = vec4(0.0);
+    //float weights[5] = float[5](0.06136, 0.24477, 0.38774, 0.24477, 0.06136);
+
+    for (int i = -blurWidth; i <= blurWidth; i++) {
+        vec4 Sample_ = imageLoad(shadowMap, gpos + ivec2(i, 0));
+        result += Sample_ * weights[i + blurWidth];
+    }
+
+    imageStore(blurredShadowMap, gpos, result);
+    
+    
+    /*
+    // Debug worked
+    vec4 shadowData = imageLoad(shadowMap, texCoord);
+    imageStore(blurredShadowMap, texCoord, vec4(1,0,0,1)); // solid red
+    */
+    /*
+    int kernelSize = 2;
 
     vec4 result = vec4(0.0);
     float weights[5] = float[5](0.06136, 0.24477, 0.38774, 0.24477, 0.06136);
 
     for (int i = -kernelSize; i <= kernelSize; i++) {
-        vec4 Sample_ = texelFetch(shadowMap, texCoord + ivec2(i, 0), 0);
+        vec4 Sample_ = imageLoad(shadowMap, gpos + ivec2(i, 0));
         result += Sample_ * weights[i + kernelSize];
     }
 
-    imageStore(blurredShadowMap, texCoord, result);
+    imageStore(blurredShadowMap, gpos, result);
+    //imageStore(blurredShadowMap, texCoord, vec4(1.0, 0.0, 0.0, 1.0)); // Debug: Force red pixels
+    */
 }
+
 
 

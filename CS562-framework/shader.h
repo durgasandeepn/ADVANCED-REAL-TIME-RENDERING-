@@ -11,16 +11,22 @@ class ShaderProgram
 {
 public:
     int programId;
-    unsigned int tempBlurTextureId, BlurredShadowMapTextureId;
+    GLuint BlurSMTextureId, FinalSMTextureId;
 
 
-    ShaderProgram();
+    ShaderProgram();//constructor
     void AddShader(const char* fileName, const GLenum type);
     void LinkProgram();
     void UseShader();
     void UnuseShader();
 
-    void CreateTexture(int Width, int Height, unsigned int TextureId);
-    void BindImageTexture( int id, unsigned int Textureid);
-    void DispatchComputerShader(int Width, int Height);
+
+    ShaderProgram(int i);//constructor
+    void LinkProgram_Compute(int PrgId);
+    void UseShader_CS(int i);
+
+    //void CreateTexture(int Width, int Height, unsigned int TextureId);
+    void BindImageTexture(int unit, unsigned int Textureid, const GLenum access, int ShaderId, char* name);
+    void BindTexture(const int unit, const int programId, const std::string& name);
+    void DispatchComputerShader(int Width, int Height, int group_x, int group_y);
 };

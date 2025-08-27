@@ -35,6 +35,9 @@ public:
 
     // Unbind this FBO's texture from a texture unit.
     void UnbindTexture(const int unit);
+    void BindImageTexture_CS(const int unit, const GLenum access, const GLenum format, int ShaderId, char* name);
+
+    unsigned int getFBOID( );
 
     /*
     void LoadTextureIDs();

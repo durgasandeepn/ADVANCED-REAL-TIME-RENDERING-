@@ -15,7 +15,9 @@
 #include "shapes.h"
 #include "object.h"
 #include "texture.h"
+#include "CreateTextue.h"
 #include "fbo.h"
+#include "Project2.h"
 
 enum ObjectIds {
     nullId	= 0,
@@ -169,6 +171,9 @@ public:
     std::vector<Object*> animated;
     ProceduralGround* proceduralground;
 
+    CreateTexture* CreateTextureObj;
+    Project2* Project2Methods;
+
     // Shader programs
     ShaderProgram* lightingProgram;
     // @@ Declare additional shaders if necessary
@@ -181,6 +186,8 @@ public:
     ShaderProgram* VerticalCS;
     float z_near;
     float z_far;
+    int AlgoNum;
+    std::vector<string> AlgoNames;
 
     //
     //18-03-2025 --> 25-03-2025

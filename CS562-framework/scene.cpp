@@ -38,6 +38,7 @@ using namespace gl;
 #include "object.h"
 #include "texture.h"
 #include "transform.h"
+#include "CreateTextue.h"
 const bool fullPolyCount = true; // Use false when emulating the graphics pipeline in software
 
 
@@ -135,7 +136,8 @@ void Scene::InitializeScene()
     //
     //glEnable(GL_DEPTH_TEST);
     CHECKERROR;
-
+    AlgoNum = 0;
+    AlgoNames = { "Initial Shadow Algo","Variance", "MSM" };
     //ShadowTesting = DepthTestTest;
     DepthFlag = true;
 
@@ -162,8 +164,8 @@ void Scene::InitializeScene()
     CurrentTime = 0;
     PreviousTime = 0;
 
-    z_near = 20.0f;
-    z_far = 100.0f;
+ 
+    //AlgoNum = 1;
 
     //Shadow Map Parameters
     ShadowMap_Width = 1024;
@@ -203,18 +205,24 @@ void Scene::InitializeScene()
     
     //
     //COMPUTE SHADER
+    CreateTextureObj = new CreateTexture();
+    Project2Methods = new Project2();
+    Project2Methods->CreateUniformBuffer();
+
     //ShaderProgram* HorizCS, VerticalCS;
     HorizCS = new ShaderProgram( );
     HorizCS->AddShader("Horiz.comp", GL_COMPUTE_SHADER);
+    //HorizCS->LinkProgram_Compute(HorizCS->Hcs_PrgId);
     HorizCS->LinkProgram();
-    HorizCS->CreateTexture(ShadowMap_Width, ShadowMap_Height, HorizCS->tempBlurTextureId);
+    //HorizCS->CreateTexture(ShadowMap_Width, ShadowMap_Height);
+    CreateTextureObj->CreatingTexture(ShadowMap_Width,ShadowMap_Height,&HorizCS->BlurSMTextureId);
     //
     VerticalCS = new ShaderProgram( );
     VerticalCS->AddShader("Vertical.comp", GL_COMPUTE_SHADER);
+    //VerticalCS->LinkProgram_Compute(VerticalCS->Vcs_PrgId);
     VerticalCS->LinkProgram();
-    VerticalCS->CreateTexture(ShadowMap_Width, ShadowMap_Height, HorizCS->BlurredShadowMapTextureId);
-
-    //
+    //VerticalCS->CreateTexture(ShadowMap_Width, ShadowMap_Height, VerticalCS->BlurredShadowMapTextureId);
+    CreateTextureObj->CreatingTexture(ShadowMap_Width, ShadowMap_Height, &VerticalCS->FinalSMTextureId);
 
     //
     //Shadow Pass
@@ -223,7 +231,8 @@ void Scene::InitializeScene()
     ShadowProgram->AddShader("shadow.frag", GL_FRAGMENT_SHADER);
     glBindAttribLocation(ShadowProgram->programId, 0, "vertex");
     ShadowProgram->LinkProgram();
-
+    //
+    
     //
     //18-03-2025 --> 25-03-2025
     GBufferProgram = new ShaderProgram();
@@ -235,8 +244,9 @@ void Scene::InitializeScene()
     glBindAttribLocation(GBufferProgram->programId, 3, "vertexTangent");
     GBufferProgram->LinkProgram();
     //
-   
+    
 
+    //
     // Create the lighting shader program from source code files.
     // @@ Initialize additional shaders if necessary
     lightingProgram = new ShaderProgram();
@@ -339,7 +349,7 @@ void Scene::InitializeScene()
 
    
 
-    CHECKERROR;
+    //CHECKERROR;
 
 #ifdef REFL
     spheres->drawMe = true;
@@ -380,7 +390,7 @@ void Scene::InitializeScene()
         room->add(leftFrame, Translate(-1.5, 9.85, 1.)*Scale(0.8, 0.8, 0.8));
         room->add(rightFrame, Translate( 1.5, 9.85, 1.)*Scale(0.8, 0.8, 0.8)); }
 
-    CHECKERROR;
+    
 
     //FOR DEFERRED SHADING 
     if (fullPolyCount) {
@@ -447,6 +457,42 @@ void Scene::DrawMenu()
     ImGui::Text("No.of Lights");
     ImGui::SliderFloat("", &Value, 1.0f, 1000.0f, "%.0f", 1.0f);
 
+    ImGui::Separator();
+    ImGui::Separator();
+    //
+    //KernalSize
+    ImGui::Text("Kernal Value: %d", Project2Methods->KernalValue());
+    if (ImGui::Button("Increase")) {
+        Project2Methods->IncrementKernal();
+    }
+    if (ImGui::Button("Decrease")) {
+        
+        Project2Methods->DecrementKernal();
+    }
+
+    ImGui::Separator();
+    ImGui::Separator();
+
+   // ImGui::Text("Algo Value: %d", AlgoNum);
+    ImGui::Text("AlgoNum Value: %d", AlgoNum);
+    if (ImGui::Button("<")) {
+
+        if (AlgoNum > 0 && AlgoNum < 3) {
+            AlgoNum--;
+        }
+        
+    }
+    ImGui::SameLine();
+    ImGui::TextUnformatted(AlgoNames[(AlgoNum)].c_str());
+    ImGui::SameLine();
+    if (ImGui::Button(">")) {
+
+        if (AlgoNum >= 0 && AlgoNum < 2) {
+            AlgoNum++;
+        }
+    }
+
+    ImGui::Separator();
 
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
@@ -660,6 +706,13 @@ void Scene::DrawScene()
                          lightDist*sin(lightSpin*rad)*sin(lightTilt*rad), 
                          lightDist*cos(lightTilt*rad));
 
+
+    //
+    float DistLightToOrigin = glm::length(lightPos);
+    z_near = DistLightToOrigin - 40;
+    z_far = DistLightToOrigin + 40;
+
+
     // Update position of any continuously animating objects
     double atime = 360.0*glfwGetTime()/36;
     for (std::vector<Object*>::iterator m=animated.begin();  m<animated.end();  m++)
@@ -755,7 +808,7 @@ void Scene::DrawScene()
         glCullFace(GL_FRONT);
 
         glUniform1f(glGetUniformLocation(ShadowPrgId, "z0"), z_near);
-        glUniform1f(glGetUniformLocation(ShadowPrgId, "z1"), z_near);
+        glUniform1f(glGetUniformLocation(ShadowPrgId, "z1"), z_far);
 
         loc = glGetUniformLocation(ShadowPrgId, "L_ViewMatrix");
         glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(L_ViewMatrix));
@@ -783,19 +836,43 @@ void Scene::DrawScene()
         ////////////////////////////////////////////////////////////////////////////////
         // Compute Shader
         ////////////////////////////////////////////////////////////////////////////////
-        /*
-        HorizCS->UseShader();
+        
+        HorizCS->UseShader_CS(0);
         HorzPrjId = HorizCS->programId;
-        Fbo->BindTexture(0, HorzPrjId, "shadowMap");//
-        HorizCS->BindImageTexture(1, HorizCS->tempBlurTextureId);
-        HorizCS->DispatchComputerShader(ShadowMap_Width, ShadowMap_Height);
+        //Fbo->BindTexture_CS(0, HorzPrjId, "shadowMap");//
+        Fbo->BindImageTexture_CS(0,GL_READ_ONLY, GL_RGBA32F, HorzPrjId, "shadowMap");//
+        //Fbo->BindImageTexture_CS(1, GL_WRITE_ONLY, GL_RGBA32F, HorzPrjId, "blurredShadowMap");//
+        HorizCS->BindImageTexture(1, HorizCS->BlurSMTextureId, GL_WRITE_ONLY,HorzPrjId,"blurredShadowMap");
+        
+        //UnifromBuffer
+        loc = glGetUniformBlockIndex(HorzPrjId, "blurKernal");
+        glUniformBlockBinding(HorzPrjId, loc, Project2Methods->bindpoint);
 
-        VerticalCS->UseShader();
+        GLint uniformLocation1 = glGetUniformLocation(HorzPrjId, "blurWidth");
+        glUniform1i(uniformLocation1, Project2Methods->blurWidth);
+
+
+        //
+        
+        //HorizCS->BindImageTexture(1, HorizCS->tempBlurTextureId, GL_WRITE_ONLY,HorzPrjId,"blurredShadowMap");
+        //HorizCS->DispatchComputerShader(ShadowMap_Width, ShadowMap_Height);
+        HorizCS->DispatchComputerShader(1024, 1024, 128, 1);
+
+        VerticalCS->UseShader_CS(0);
         VerticalPrjId = VerticalCS->programId;
-        VerticalCS->BindImageTexture(0,HorizCS->tempBlurTextureId);
-        VerticalCS->BindImageTexture(1,VerticalCS->BlurredShadowMapTextureId);
-        VerticalCS->DispatchComputerShader(ShadowMap_Width, ShadowMap_Height);
-        */
+        VerticalCS->BindImageTexture(0,HorizCS->BlurSMTextureId, GL_READ_ONLY, VerticalPrjId, "blurredShadowMap");
+        VerticalCS->BindImageTexture(1,VerticalCS->FinalSMTextureId, GL_WRITE_ONLY, VerticalPrjId, "finalShadowMap");
+        
+        loc = glGetUniformBlockIndex(VerticalPrjId, "blurKernal");
+        glUniformBlockBinding(VerticalPrjId, loc, Project2Methods->bindpoint);
+
+        GLint uniformLocation = glGetUniformLocation(VerticalPrjId, "blurWidth");
+        glUniform1i(uniformLocation, Project2Methods->blurWidth);
+
+        
+        //VerticalCS->DispatchComputerShader(ShadowMap_Width, ShadowMap_Height);
+        VerticalCS->DispatchComputerShader(1024, 1024, 1, 128);
+        
         ////////////////////////////////////////////////////////////////////////////////
         // Compute Shader
         ////////////////////////////////////////////////////////////////////////////////
@@ -822,6 +899,14 @@ void Scene::DrawScene()
         // @@ The scene specific parameters (uniform variables) used by
         // the shader are set here.  Object specific parameters are set in
         // the Draw procedure in object.cpp
+        
+        glUniform1f(glGetUniformLocation(programId, "z0"), z_near);
+        glUniform1f(glGetUniformLocation(programId, "z1"), z_far);
+
+
+        GLint uniformLocation3 = glGetUniformLocation(programId, "AlgoNum");
+        glUniform1i(uniformLocation3, AlgoNum);
+
 
         //
         Fbo->BindTexture(2, programId, "shadowMap");//
@@ -829,8 +914,10 @@ void Scene::DrawScene()
         GB_Fbos->BindTexture4(4, programId, "NMap");
         GB_Fbos->BindTexture4(5, programId, "KdMap");
         GB_Fbos->BindTexture4(6, programId, "KaMap");
-        //VerticalCS->BindImageTexture(7, VerticalCS->BlurredShadowMapTextureId, );//From here
+        //VerticalCS->BindTexture(7, programId, "BlurredShadowMap");
+        CreateTextureObj->BindTexture(7, programId, "BlurredShadowMap", VerticalCS->FinalSMTextureId);
 
+        //VerticalCS->BindImageTexture(7, VerticalCS->BlurredShadowMapTextureId, );//From here
 
         /*
         loc = glGetUniformLocation(programId, "WorldProj");
@@ -880,69 +967,69 @@ void Scene::DrawScene()
         ////////////////////////////////////////////////////////////////////////////////
     //}
 
-        //
-        ////////////////////////////////////////////////////////////////////////////////
-        // Start of Local lights pass
-        ////////////////////////////////////////////////////////////////////////////////
-        //
-        glDisable(GL_DEPTH_TEST);
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_ONE, GL_ONE);
-        //
-        glEnable(GL_CULL_FACE);
-        //glCullFace(GL_BACK);
-        glCullFace(GL_FRONT);
+    //    //
+    //    ////////////////////////////////////////////////////////////////////////////////
+    //    // Start of Local lights pass
+    //    ////////////////////////////////////////////////////////////////////////////////
+    //    //
+    //    glDisable(GL_DEPTH_TEST);
+    //    glEnable(GL_BLEND);
+    //    glBlendFunc(GL_ONE, GL_ONE);
+    //    //
+    //    glEnable(GL_CULL_FACE);
+    //    //glCullFace(GL_BACK);
+    //    glCullFace(GL_FRONT);
 
-        LocalLightsProgram->UseShader();
-        LocalLightsPrgId = LocalLightsProgram->programId;
-        
-        /*
-        glViewport(0, 0, width, height);
-        glClearColor(0.5, 0.5, 0.5, 1.0);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        */
-        //
-        GB_Fbos->BindTexture4(3, LocalLightsPrgId, "WorldPosMap");
-        GB_Fbos->BindTexture4(4, LocalLightsPrgId, "NMap");
-        GB_Fbos->BindTexture4(5, LocalLightsPrgId, "KdMap");
-        GB_Fbos->BindTexture4(6, LocalLightsPrgId, "KaMap");
-        //
-        loc = glGetUniformLocation(LocalLightsPrgId, "WorldProj");
-        glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(WorldProj));
-        loc = glGetUniformLocation(LocalLightsPrgId, "WorldView");
-        glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(WorldView));
-        loc = glGetUniformLocation(LocalLightsPrgId, "WorldInverse");
-        glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(WorldInverse));
-        //
-        // 
-        //loc = glGetUniformLocation(LocalLightsPrgId, "Light");
-        //glUniform3fv(loc, 1, &(Light[0]));
-        //loc = glGetUniformLocation(LocalLightsPrgId, "Ambient");
-        //glUniform3fv(loc, 1, &(Ambient[0]));
-        
-        loc = glGetUniformLocation(programId, "Ambient");//
-        glUniform3fv(loc, 1, &(Ambient[0]));
-        //
+    //    LocalLightsProgram->UseShader();
+    //    LocalLightsPrgId = LocalLightsProgram->programId;
+    //    
+    //    /*
+    //    glViewport(0, 0, width, height);
+    //    glClearColor(0.5, 0.5, 0.5, 1.0);
+    //    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    //    */
+    //    //
+    //    GB_Fbos->BindTexture4(3, LocalLightsPrgId, "WorldPosMap");
+    //    GB_Fbos->BindTexture4(4, LocalLightsPrgId, "NMap");
+    //    GB_Fbos->BindTexture4(5, LocalLightsPrgId, "KdMap");
+    //    GB_Fbos->BindTexture4(6, LocalLightsPrgId, "KaMap");
+    //    //
+    //    loc = glGetUniformLocation(LocalLightsPrgId, "WorldProj");
+    //    glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(WorldProj));
+    //    loc = glGetUniformLocation(LocalLightsPrgId, "WorldView");
+    //    glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(WorldView));
+    //    loc = glGetUniformLocation(LocalLightsPrgId, "WorldInverse");
+    //    glUniformMatrix4fv(loc, 1, GL_FALSE, Pntr(WorldInverse));
+    //    //
+    //    // 
+    //    //loc = glGetUniformLocation(LocalLightsPrgId, "Light");
+    //    //glUniform3fv(loc, 1, &(Light[0]));
+    //    //loc = glGetUniformLocation(LocalLightsPrgId, "Ambient");
+    //    //glUniform3fv(loc, 1, &(Ambient[0]));
+    //    
+    //    loc = glGetUniformLocation(programId, "Ambient");//
+    //    glUniform3fv(loc, 1, &(Ambient[0]));
+    //    //
 
-        for (int i = 0; i < pointLights.size(); i++) {
+    //    for (int i = 0; i < pointLights.size(); i++) {
 
-            glUniform1i(glGetUniformLocation(LocalLightsPrgId, "lightIndex"), i);
+    //        glUniform1i(glGetUniformLocation(LocalLightsPrgId, "lightIndex"), i);
 
-            LightSphs_Root->Draw(LocalLightsProgram, Identity,i);
+    //        LightSphs_Root->Draw(LocalLightsProgram, Identity,i);
 
-        }
+    //    }
 
 
-        glDisable(GL_BLEND);
-        glDisable(GL_CULL_FACE);
-        
-        LocalLightsProgram->UseShader();
+    //    glDisable(GL_BLEND);
+    //    glDisable(GL_CULL_FACE);
+    //    
+    //    LocalLightsProgram->UseShader();
 
-        //
-        ////////////////////////////////////////////////////////////////////////////////
-        // End of Local lights pass
-        ////////////////////////////////////////////////////////////////////////////////
-        //
+    //    //
+    //    ////////////////////////////////////////////////////////////////////////////////
+    //    // End of Local lights pass
+    //    ////////////////////////////////////////////////////////////////////////////////
+    //    //
 
     //}//CHECKing
     PreviousTime = glfwGetTime();
@@ -1000,7 +1087,7 @@ void Scene::CreateSSBO( ) {
     size_t lightsSize = pointLights.size() * sizeof(PointLightData);
     glBufferData(GL_SHADER_STORAGE_BUFFER, lightsSize, pointLights.data(), GL_DYNAMIC_DRAW);
 
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, ssboID);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, ssboID);//binding value is the one that binds
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, 0); // Unbind
     //CHECKERROR;
 }

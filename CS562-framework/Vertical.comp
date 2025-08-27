@@ -1,12 +1,52 @@
-#version 450
+#version 430
 
-layout(local_size_x = 16, local_size_y = 16) in; 
+layout(local_size_x = 1, local_size_y = 128, local_size_z = 1) in; 
 
-layout(binding = 0, rgba32f) uniform image2D blurredShadowMap;
-layout(binding = 1, rgba32f) uniform image2D finalShadowMap;
+uniform blurKernal { float weights[101];};
+uniform int blurWidth;
+
+layout(rgba32f) readonly uniform image2D blurredShadowMap;
+layout(rgba32f) writeonly uniform image2D finalShadowMap;
+
+shared vec4 v[229]; //128+101 = 229
 
 void main() {
-    ivec2 texCoord = ivec2(gl_GlobalInvocationID.xy);
+
+    ivec2 gpos = ivec2(gl_GlobalInvocationID.xy); 
+    if(weights[0] == 0){
+         imageStore(finalShadowMap, gpos, vec4(1,0,0,1)); // solid red
+         return;
+    }
+
+
+    //ivec2 gpos = ivec2(gl_GlobalInvocationID.xy); 
+    uint Ipos = gl_LocalInvocationID.y;
+
+    v[Ipos] = imageLoad(blurredShadowMap, gpos + ivec2(0,-blurWidth));
+    if(Ipos < (2 * blurWidth)){
+        v[Ipos + 128] = imageLoad(blurredShadowMap, gpos + ivec2(0,2 * blurWidth));
+    }
+
+    barrier();
+
+    vec4 result = vec4(0.0);
+    //float weights[5] = float[5](0.06136, 0.24477, 0.38774, 0.24477, 0.06136);
+
+    for (int i = -blurWidth; i <= blurWidth; i++) {
+        vec4 Sample_ = imageLoad(blurredShadowMap, gpos + ivec2(0, i));
+        result += Sample_ * weights[i + blurWidth];
+    }
+
+    imageStore(finalShadowMap, gpos, result);
+
+
+    /*
+    //finally debug worked 
+    vec4 shadowData = imageLoad(blurredShadowMap, texCoord);
+    imageStore(finalShadowMap, texCoord, vec4(shadowData.r, 0.0, 0.0, 1.0));
+    */
+    
+    /*
     int kernelSize = 2;
 
     vec4 result = vec4(0.0);
@@ -16,6 +56,7 @@ void main() {
         vec4 Sample = imageLoad(blurredShadowMap, texCoord + ivec2(0, i));
         result += Sample * weights[i + kernelSize];
     }
+    imageStore(finalShadowMap, texCoord, result);// / 5.0); 
+    */
 
-    imageStore(finalShadowMap, texCoord, result);
 }

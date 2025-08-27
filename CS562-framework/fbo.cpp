@@ -165,6 +165,10 @@ void FBO::CreateFBO_Multi(const int w, const int h)
 }
 
 
+unsigned int FBO::getFBOID( ) {
+    return fboID;
+}
+
 void FBO::BindFBO() { 
     glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, fboID); 
     //CHECKERROR;
@@ -185,6 +189,17 @@ void FBO::BindTexture(const int unit, const int programId, const std::string& na
     int loc = glGetUniformLocation(programId, name.c_str());
     glUniform1i(loc, unit);
 }
+
+
+void FBO::BindImageTexture_CS(const int unit,const GLenum access, const GLenum format,int ShaderId, char* name)
+{//
+
+   glBindImageTexture(unit, textureID, 0, GL_FALSE, 0, access, format);
+   int loc = glGetUniformLocation(ShaderId, name);
+   glUniform1i(loc, unit);
+
+}
+
 
 
 void FBO::BindTexture4(const int unit, const int programId, const std::string& name)

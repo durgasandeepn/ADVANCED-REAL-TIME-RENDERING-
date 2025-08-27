@@ -20,9 +20,8 @@ const int     spheresId	= 10;
 const int     floorId	= 11;
 
 //in vec3 normalVec, lightVec,eyeVec;
-//in vec2 texCoord;//
-uniform sampler2D tex;//
-uniform sampler2D normalMap;
+in vec2 texCoord;//
+//uniform sampler2D normalMap;
 
 //Shadow
 //uniform sampler2DShadow shadowMap;
@@ -33,6 +32,8 @@ float lightDepth;
 float pixelDepth;
 bool inShadow;
 
+//
+uniform sampler2D tex;//For wall tiles
 //
 uniform int objectId;
 uniform vec3 diffuse;
@@ -79,21 +80,170 @@ uniform mat4 WorldInverse,ShadowMatrix;//WorldView, WorldInverse, WorldProj, Mod
 uniform vec3 lightPos1;//LIGHT POSITION
 vec3 eyePos;
 vec3 normalVec, lightVec, eyeVec;
-in vec2 texCoord;//06-04-2025 - needed
+//in vec2 texCoord;//06-04-2025 - needed
 
 vec3 uv3;
 vec3 WorldPos_Sha;//for shadow
 
+uniform float z0;//z_near
+uniform float z1;//z_far
+
+float S;
+
+vec3 CholeskyDecomposition(float m11, float m12, float m13, float m22, float m23, float m33, float z1, float z2, float z3)
+{
+ float a = sqrt(m11);
+ float b = m12 / a;
+ float c = m13 / a;
+
+ float d = sqrt(m22 - b * b);
+ float e = (m23 - b * c) / d;
+ float f = sqrt(m33 - c * c - e * e);
+
+ // Capped value (a, d, f)
+ a = max(a, 1e-4f);
+ d = max(d, 1e-4f);
+ f = max(f, 1e-4f);
+
+ float _c1 = z1 / a;
+ float _c2 = (z2 - b * _c1) / d;
+ float _c3 = (z3 - c * _c1 - e * _c2) / f;
+
+ float c3 = _c3 / f;
+ float c2 = (_c2 - e * c3) / d;
+ float c1 = (_c1 - b * c2 - c * c3) / a;
+
+ return vec3(c1, c2, c3);
+}
+
+
+vec2 SolveQuadratic(float a, float b, float c)
+{
+ const float epsilon = 1e-6f;
+ float discriminant = b * b - 4 * a * c;
+ 
+ // 2 real roots
+ if (discriminant > epsilon)
+ {
+  float root1 = (-b + sqrt(discriminant)) / (2.0f * a);
+  float root2 = (-b - sqrt(discriminant)) / (2.0f * a);
+  return vec2(min(root1, root2), max(root1, root2));
+ }
+ // 1 real root
+ else if (discriminant >= 0.0f && discriminant <= epsilon)
+ {
+  float root = -b / (2.0f * a);
+  return vec2(root);
+ }
+ // 2 complex roots
+ else
+ {
+  float real = -b / (2.0f * a);
+  float imag = sqrt(-discriminant) / (2.0f * a);
+  return vec2(real, imag);
+ }
+}
+
+//MSM
+ float MomentShadowMap(sampler2D shadowMap, vec4 shadowCoord){
+			
+			float zF = pixelDepth;
+
+			const float epsilon = 1e-3f;
+			float zF_2 = pixelDepth * pixelDepth;
+			normalVec = texture(NMap, uv).xyz;
+
+
+			float Shadowbias =  max(0.05 * (1.0 - dot(normalVec, lightVec)), 0.001f);
+			vec4 b = texture2D(BlurredShadowMap, shadowIndex.xy);
+		
+			 //float shadowBias = 1e-3f;
+			if (abs(b.x - Shadowbias) < epsilon){
+				return 0.0f;
+			}
+
+			float alpha = 1e-3f;
+			vec4 bPrime = (1.0f - alpha) * b + (alpha * vec4(0.5f));
+
+
+			vec3 c = CholeskyDecomposition(1.0f, bPrime.x, bPrime.y, bPrime.y, bPrime.z, bPrime.w, 1.0f, zF, zF_2);
+
+		 
+			 vec2 solutions = SolveQuadratic(c.z, c.y, c.x);
+			 float z2 = solutions.x;
+			 float z3 = solutions.y;
+
+			  if (zF <= z2 || abs(zF - z2) <= epsilon)
+			 {
+			  return 0.0;
+			 }
+
+			 if (zF <= z3 || abs(zF - z3) <= epsilon)
+			 {
+			  float numerator = zF * z3 - bPrime.x * (zF + z3) + bPrime.y;
+			  float denominator = (z3 - z2) * (zF - z2);
+			  return numerator / denominator;
+			 }
+
+			 float numerator = z2 * z3 - bPrime.x * (z2 + z3) + bPrime.y;
+			 float denominator = (zF - z2) * (zF - z3);
+			 return 1.0 - numerator / denominator;
+		}
+
+
+//Variance Map
+float VarianceMap(sampler2D BlurShadowMap, float t){
+	float S, M1, M2, Sigma_Sqr, Mu;
+	vec2 uv = gl_FragCoord.xy/vec2(750,750); // Or use textureSize
+    
+	vec4 BlurValues = texture2D(BlurredShadowMap, uv);
+	M1 = BlurValues.r;
+	M2 = BlurValues.g;
+
+	Mu = M1;
+
+	Sigma_Sqr = M2 - ( M1 * M1 );
+	
+	S = Sigma_Sqr/Sigma_Sqr + pow((t - Mu), 2);
+
+	return S;
+}
+
+
 void main()
 {	
+	//
+	//DEBUGGING 
+
+	
+	//ShadowMap Reading Correctly ... working
+	vec2 uv = gl_FragCoord.xy/vec2(750,750); // Or use textureSize
+    FragColor = texture(BlurredShadowMap, uv);
+	return;
+	
+	
+	/*
+	//CHECKED BLUR IS WORKING ... wokring
+	vec2 uv = gl_FragCoord.xy/vec2(750,750); // Or use textureSize
+    FragColor = texture(BlurredShadowMap, uv);
+	return;
+	*/
+	//
+
+	//
+	//TESTING--->TESTED WORKING
+	//uv = gl_FragCoord.xy/vec2(750,750); // (or whatever screen size)//750,750 given in test pdf
+	//FragColor.xyz = abs(texture(NMap, uv).xyz);//working
+	//FragColor.xyz = (texture(WorldPosMap, uv).xyz)/2;//working
+	//FragColor.xyz = (texture(KdMap, uv).xyz);//working
+	//FragColor.xyz = (texture(KaMap, uv).xyz) * 50;//working
+	//return;
+
+
 
 	/*
-	vec2 uv = gl_FragCoord.xy/vec2(750,750); // Or use textureSize
-    vec3 pos = texture(WorldPosMap, uv).xyz;
-
     // Visualize the position (scale/bias might be needed to see colors)
     FragColor = vec4(abs(pos) * 0.1, 1.0); // Example visualization
-
 	return;
 	*/
 
@@ -114,27 +264,6 @@ void main()
 	//
 
 
-	//
-	//normalVec = ;
-	//lightVec = ;
-	//
-
-	//
-	//TESTING--->TESTED WORKING
-	//uv = gl_FragCoord.xy/vec2(750,750); // (or whatever screen size)//750,750 given in test pdf
-	//FragColor.xyz = abs(texture(NMap, uv).xyz);//working
-	//FragColor.xyz = (texture(WorldPosMap, uv).xyz)/2;//working
-	//FragColor.xyz = (texture(KdMap, uv).xyz);//working
-	//FragColor.xyz = (texture(KaMap, uv).xyz) * 50;//working
-	//return;
-
-	/*
-	uv = gl_FragCoord.xy/vec2(750,750); // (or whatever screen size)//750,750 given in test pdf
-	FragColor.xyz = vec3(texture(shadowMap, uv).w/100.0); // or similar
-	FragColor.w = 1.0;
-	return; // which disables all further code in the shader
-	*/
-
 	vec3 N = texture(NMap, uv).rgb;//changed
     vec3 L = normalize(lightVec);
 	vec3 V = normalize(eyeVec);//done
@@ -146,6 +275,12 @@ void main()
     //vec3 Kd = diffuse;//color texture(WorldPosMap, uv).xyz;
     vec3 Kd = texture(KdMap, uv).xyz;
 	vec3 Ks = texture(KaMap, uv).xyz;
+	
+	/*
+	vec2 uv = gl_FragCoord.xy/vec2(750,750); // Or use textureSize
+    FragColor = vec4(Kd,1.0);
+	return;
+	*/
 	
 	vec3 Ii = Light;
 	vec3 Ia = Ambient;
@@ -161,9 +296,23 @@ void main()
         ShadowCoord.w > 0.0)
     {
         // Sample the shadow map (depth value from light's perspective)
+
+		//BlurredShadowMap
         lightDepth = texture2D(shadowMap, shadowIndex).w;
-        pixelDepth = ShadowCoord.w - 0.05;
-		
+        pixelDepth = (ShadowCoord.w - z0)/(z1 - z0);//zf in the document
+
+
+		S =  VarianceMap(BlurredShadowMap, lightDepth);
+
+
+		//S = MomentShadowMap(shadowMap, ShadowCoord);
+			
+		/*
+		FragColor = vec4(1.0,0.0,1.0,1.0);
+		return;
+		*/
+
+
         // Determine if the fragment is in shadow (if pixelDepth > lightDepth)
 		inShadow =  (pixelDepth > lightDepth);
 	
@@ -335,10 +484,11 @@ void main()
 		} else if (inShadow == false) 
 		{
 			//In lighting
-			FragColor.xyz = (Ia * Kd) + Ii*(LN)	* (BRDF);
+			FragColor.xyz = (Ia * Kd) + S *(Ii*(LN)	* (BRDF));
+			//FragColor.xyz = (Ia * Kd) + Ii * (LN) * (BRDF);
 		}
 
-		
+		FragColor.xyz = (Ia * Kd) + S *(Ii*(LN)	* (BRDF));
 		FragColor.w = 1.0;
 		
 	}else if(objectId == skyId || objectId == seaId) {

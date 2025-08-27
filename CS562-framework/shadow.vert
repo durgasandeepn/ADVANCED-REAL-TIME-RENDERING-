@@ -10,7 +10,7 @@ in vec4 vertex;
 out vec4 position;
 
 void main()
-{      
+{   
 	gl_Position = L_ProjectionMatrix * L_ViewMatrix * ModelTr * vertex;
 	position = gl_Position;
 }

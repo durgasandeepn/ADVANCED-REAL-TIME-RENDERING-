@@ -44,6 +44,7 @@ ShaderProgram::ShaderProgram()
     programId = glCreateProgram();
 }
 
+
 // Use a shader program
 void ShaderProgram::UseShader()
 {
@@ -67,9 +68,9 @@ void ShaderProgram::AddShader(const char* fileName, GLenum type)
 
     // Create a shader and attach, hand it the source, and compile it.
     int shader = glCreateShader(type);
-    glAttachShader(programId, shader);
     glShaderSource(shader, 1, psrc, NULL);
     glCompileShader(shader);
+    glAttachShader(programId, shader);
     delete src;
 
     // Get the compilation status
@@ -109,8 +110,16 @@ void ShaderProgram::LinkProgram()
 }
 
 
+//For Compute Shader
+void ShaderProgram::UseShader_CS(int i){
+ 
+    glUseProgram(programId);
 
-void ShaderProgram::CreateTexture(int Width, int Height, unsigned int TextureId) {
+}
+
+
+/*
+void ShaderProgram::CreateTexture(int Width, int Height) {
 
     glGenTextures(1, &TextureId);
     glBindTexture(GL_TEXTURE_2D, TextureId);
@@ -118,18 +127,60 @@ void ShaderProgram::CreateTexture(int Width, int Height, unsigned int TextureId)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, (int)GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, (int)GL_LINEAR);
     glBindTexture(GL_TEXTURE_2D, 0);
+}
+*/
 
+
+// the error log string.
+void ShaderProgram::LinkProgram_Compute(int PrgId)
+{
+    // Link program and check the status
+    glLinkProgram(PrgId);
+    int status;
+    glGetProgramiv(PrgId, GL_LINK_STATUS, &status);
+
+    // If link failed, get and print log
+    if (status != 1) {
+        int length;
+        glGetProgramiv(PrgId, GL_INFO_LOG_LENGTH, &length);
+        char* buffer = new char[length];
+        glGetProgramInfoLog(PrgId, length, NULL, buffer);
+        printf("Link log:\n%s\n", buffer);
+        delete[] buffer;
+    }
 }
 
 
-void ShaderProgram::BindImageTexture(int id, unsigned int Textureid) {
-    glBindImageTexture(1, Textureid, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+
+void ShaderProgram::BindImageTexture(int unit, unsigned int Textureid, const GLenum access, int ShaderId, char* name) {
+    //glActiveTexture(GL_TEXTURE0);
+    //glBindTexture(GL_TEXTURE_2D, Textureid);  
+    //glBindImageTexture(id, Textureid, 0, GL_FALSE, 0, access, GL_RGBA32F);
+    glBindImageTexture(unit, Textureid, 0, GL_FALSE, 0, access, GL_RGBA32F);
+    int loc = glGetUniformLocation(ShaderId, name);
+    glUniform1i(loc, unit);
 }
 
 
-void ShaderProgram::DispatchComputerShader(int Width, int Height) {
-    glDispatchCompute(Width / 16, Height / 16, 1);
+
+void ShaderProgram::BindTexture(const int unit, const int programId, const std::string& name)
+{//
+    /*
+    glActiveTexture((gl::GLenum)((int)GL_TEXTURE0 + unit));
+    //CHECKERROR;
+    glBindTexture(GL_TEXTURE_2D, FinalSMTextureId);
+    //CHECKERROR;
+    int loc = glGetUniformLocation(programId, name.c_str());
+    glUniform1i(loc, unit);
+    */
+}
+
+
+void ShaderProgram::DispatchComputerShader(int Width, int Height, int group_x, int group_y) {
+
+    glDispatchCompute(Width / group_x, Height / group_y, 1);
     glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
 }
 
 /*
